@@ -6,6 +6,10 @@ approved: 2026-09-29 by owner, who said "hagámoslo" in conversation
 
 # KoeFrame transcript review pilot — product
 
+**Owner approval:** 2026-09-29. The owner approved the bounded Aoyama ASR and
+subtitle comparison pilot by saying “hagámoslo” after the proposal to use
+Speaches for transcription and Subtitler's cue API for normalized subtitles.
+
 ## Who and why
 
 The private-library operator wants to know what the Japanese audio actually

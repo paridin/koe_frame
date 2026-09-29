@@ -280,7 +280,7 @@ KoeFrame's runtime image has no Mix. Do not copy media into the repository.
 First inspect that file's own stream indexes through release RPC:
 
 ```sh
-bin/koe_frame rpc 'IO.puts(Jason.encode!(Defdo.KoeFrame.TranscriptReview.stream_inventory(System.fetch_env!("KOEFRAME_VIDEO"))))'
+bin/koe_frame rpc 'case Defdo.KoeFrame.TranscriptReview.stream_inventory(System.fetch_env!("KOEFRAME_VIDEO")) do {:ok, inventory} -> IO.puts(Jason.encode!(inventory)); {:error, reason} -> IO.puts(:stderr, inspect(reason)) end'
 ```
 
 Set `KOEFRAME_VIDEO`, `KOEFRAME_AUDIO_INDEX`, and
@@ -291,12 +291,14 @@ the just-produced inventory, then run the preview through RPC:
 bin/koe_frame rpc 'case Defdo.KoeFrame.TranscriptReview.preview(%{path: System.fetch_env!("KOEFRAME_VIDEO"), audio_stream: String.to_integer(System.fetch_env!("KOEFRAME_AUDIO_INDEX")), subtitle_stream: String.to_integer(System.fetch_env!("KOEFRAME_SUBTITLE_INDEX")), source_language: "ja", start_ms: 0, duration_ms: 30000}) do {:ok, report} -> IO.puts(Jason.encode!(report)); {:error, reason} -> IO.puts(:stderr, inspect(reason)) end'
 ```
 
-The binary manual gate is: the report contains at least one ASR word
-overlapping each of the two known speech passages (6,000–9,060 ms and
-13,280–17,820 ms), and contains the corresponding Spanish cues around
-5,910–9,480 ms and 13,190–18,490 ms. Review transcript wording manually; this
-gate validates stream and timing association, not ASR accuracy. Confirm the
-temporary directory is removed after the RPC call.
+Using the default `deepdml/faster-whisper-large-v3-turbo-ct2` model, the binary
+manual gate is: for each known Spanish cue range (5,910–9,480 ms and
+13,190–18,490 ms), the report contains that cue and at least one ASR word
+inside its corresponding speech passage (6,000–9,060 ms and 13,280–17,820 ms)
+whose `cue_ids` contains that cue's returned `id`. A report with empty
+`cue_ids` fails even if all words and cues are present. Review transcript
+wording manually; this gate validates stream and timing association, not ASR
+accuracy. Confirm the temporary directory is removed after the RPC call.
 
 ## Ecosystem
 

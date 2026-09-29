@@ -6,6 +6,10 @@ approved: P-01–P-05 on 2026-09-27; P-06 on 2026-09-29 by owner in conversation
 
 # KoeFrame — product
 
+**Owner approval for P-06:** 2026-09-29. After the proposal for a short
+Aoyama preview that compares Japanese speech recognition with the selected
+Spanish subtitle through Speaches and Subtitler, the owner said “hagámoslo”.
+
 ## Who and why
 
 This is the owner’s private video intake, localization, and library-management
