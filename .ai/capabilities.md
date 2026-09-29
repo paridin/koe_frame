@@ -2,12 +2,22 @@
 
 ## Current capabilities
 
-- KoeFrame currently provides a Phoenix scaffold, a versioned migrator, and
+- KoeFrame provides a Phoenix application scaffold, a versioned migrator, and
   the approved product boundary for media intake, localization orders, and
   library management.
-- The `Defdo.KoeFrame.MediaAnalysis` API and Ffmpex adapter are introduced by
-  slice 01; after that slice passes its gates, this file must describe its
-  probe, subtitle-extraction, and audio-segment-extraction entry points.
+- `Defdo.KoeFrame.MediaAnalysis` provides local media inventory and bounded
+  extraction through these entry points:
+  - `probe/1` (`probe(source_path)`) returns normalized container metadata
+    and streams, preserving each FFprobe global stream index.
+  - `extract_subtitle/4`
+    (`extract_subtitle(source_path, stream_index, output_path, output_format)`)
+    copies the selected subtitle stream. Set `output_format` to `nil` to infer
+    it from the destination extension.
+  - `extract_audio_segment/6`
+    (`extract_audio_segment(source_path, stream_index, start_ms, duration_ms,
+    output_path, profile)`) writes a WAV segment no longer than 60 seconds.
+    `profile` accepts `sample_rate` and `channels`, defaulting to 16,000 Hz
+    mono.
 
 ## Use when
 
@@ -20,8 +30,9 @@
 
 - ASR, subtitle cue parsing/translation, Hub task submission, Sonarr catalog
   matching, and final media import are separate follow-up capabilities.
-- The runtime image must provide `ffprobe` and `ffmpeg`; this slice does not
-  package or download those binaries.
+- The runtime image must provide compatible `ffprobe` and `ffmpeg` executables
+  on `PATH`; Ffmpex and Rambo do not bundle them. This slice does not package
+  or download binaries and does not establish production-image readiness.
 
 ## Replaces
 
