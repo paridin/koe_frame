@@ -3,41 +3,41 @@ kind: architecture
 topic: koe-frame-transcript-review
 ---
 
-# Keep the transcript-review pilot independent of Subtitler's app runtime
+# Use Subtitler's supported cue contract from the transcript-review pilot
 
 **Status:** accepted for the one-segment pilot, 2026-09-29.
 
 ## Decision
 
-KoeFrame normalizes the extracted SRT cues into a small generic cue shape for
-the transcript-review report. It does not add a compile-time dependency on
-Subtitler or call Subtitler's private `Subtitler.SRT` module.
+Subtitler owns normalized cue IDs, times, and text. KoeFrame posts the extracted
+SRT text to Subtitler's supported `POST /api/cues/parse` endpoint and consumes
+its generic cue response. KoeFrame does not add a compile-time dependency on
+Subtitler or call its private `Subtitler.SRT` module.
 
 ## Why
 
 Subtitler `0.1.10` is a standalone Phoenix application. Its parser is marked
-`@moduledoc false`, returns a parser-specific `%{index, timing, lines}` shape,
-and its HTTP API accepts translation jobs rather than generic cue-parse
-requests. Calling it would either couple KoeFrame to an unsupported module or
-add a service hop just to parse text already extracted by KoeFrame.
+`@moduledoc false` and returns a parser-specific `%{index, timing, lines}`
+shape; its current HTTP API has no generic cue-parse request. The new additive
+cue API makes that capability reusable without coupling KoeFrame to the
+private parser module or database.
 
-KoeFrame owns the media stream selection and extraction. For this pilot, it
-needs to preserve the FFprobe stream index as report metadata and move word
-timings from the extracted-segment origin back to the video's source timeline.
-The cue parser therefore stays at that app boundary and emits generic ordinal
-IDs, integer millisecond ranges, and text. A media stream index is never part
-of the cue ID or cue fields.
+KoeFrame owns media stream selection and extraction. It preserves the FFprobe
+stream index as report metadata and moves word timings from the extracted
+segment origin back to the video's source timeline. Subtitler emits generic
+document-local cue IDs, integer millisecond ranges, and text. A media stream
+index is never part of the cue ID or cue fields.
 
 ## Consequences
 
-- The parser accepts the SRT output produced by KoeFrame's FFmpeg extraction;
-  it does not parse containers or ASS directly.
-- The Speaches adapter and cue parser are separate modules and behaviours so
-  each can be replaced without changing the report contract.
-- Before Subtitler or another consumer uses the cue type, extract the shared
-  contract/parser into a package or publish a supported Subtitler API and
-  migrate both consumers. This pilot is not permission to duplicate an
-  app-private parser.
+- KoeFrame converts selected embedded subtitles to SRT with FFmpeg and sends
+  that text to Subtitler; Subtitler does not parse containers or ASS directly.
+- The Speaches adapter owns its provider behavior. KoeFrame's Subtitler client
+  is an HTTP transport module tested with a local Req plug; the pure alignment
+  module has no behavior or external-service responsibility.
+- Subtitler's cue API is reusable independently of anime, media stream indexes,
+  or KoeFrame's report. A future package extraction can preserve this HTTP
+  contract.
 - The pilot stores no cue records and adds no migration.
 - This slice stops at a synchronous segment of at most 60 seconds. The
   existing root product decision in `product.md` P-03/P-04 assigns durable

@@ -23,10 +23,16 @@ Read this before implementing any slice in this set. Work only in the
 - The preview needs `KOE_FRAME_SPEACHES_BASE_URL` and
   `KOE_FRAME_SPEACHES_MODEL`. The model defaults to the NAS pilot's
   `deepdml/faster-whisper-large-v3-turbo-ct2`. The base URL has no safe
-  universal default; return a clear configuration error if it is absent.
+  universal default; return a clear configuration error if it is absent. It
+  also needs `KOE_FRAME_SUBTITLER_BASE_URL` pointing to the private Subtitler
+  service that has released `POST /api/cues/parse`. Dev and release config read
+  these values from the environment; adapters read `Application.get_env/3`.
 - Bound both Req `request_timeout` and `receive_timeout` using
-  `KOE_FRAME_SPEACHES_TIMEOUT_MS` (default 180,000 ms) and set `max_retries: 0`
-  so a streamed inference request cannot hang or be silently repeated.
+  `KOE_FRAME_SPEACHES_TIMEOUT_MS` (default 180,000 ms, accepted range
+  1–300,000 ms) and set `max_retries: 0` so a streamed inference request
+  cannot hang or be silently repeated. The cue API uses
+  `KOE_FRAME_SUBTITLER_TIMEOUT_MS` (default 30,000 ms, accepted range
+  1–60,000 ms), with both Req timeouts set and retries disabled.
 - The NAS pilot Speaches service is reachable on the private network without
   an API key. If authentication is enabled, return an unauthorized error and
   add a Vault-backed credential reference in a separate slice; do not add a
@@ -38,15 +44,22 @@ Read this before implementing any slice in this set. Work only in the
   and FFmpeg extraction. Do not build FFmpeg command strings in the Mix task,
   transcript context, or tests.
 - The transcript-review context owns input validation, temporary-file
-  lifecycle, ASR adapter routing, normalized word timestamps, and cue overlap
-  reporting. The Speaches URL/model are server configuration, never CLI input.
-- `MediaStream.codec_name` is normalized by `MediaAnalysis.probe/1`; only
-  `ass`, `ssa`, and `subrip` are supported for subtitle-to-SRT conversion in
-  this pilot. Reject missing and other codec names before FFmpeg runs.
+  lifecycle, ASR adapter routing, normalized word timestamps, Subtitler HTTP
+  client routing, and cue overlap reporting. Speaches/Subtitler URLs and the
+  Speaches model are application configuration, never CLI input.
+- Subtitler owns SRT cue parsing, generic cue IDs, times, and text through
+  `POST /api/cues/parse`. KoeFrame does not copy the parser or generate IDs;
+  it validates the HTTP response and filters cues to the selected clip.
+- `MediaStream.codec_name` is copied from FFprobe without normalization; only
+  the exact values `ass`, `ssa`, and `subrip` are supported for subtitle-to-SRT
+  conversion in this pilot. Reject missing and other codec names before
+  FFmpeg runs.
 - The first pilot accepts a local absolute path only through the operator's
-  `mix` command. Do not add an HTTP endpoint that accepts a server path.
-- Speaches receives only the extracted WAV segment. Neither the original
-  video nor subtitle text is sent to the Hub or another internet service.
+  `mix` command or the public KoeFrame function called by release RPC. Do not
+  add an HTTP endpoint that accepts a server path.
+- Speaches receives only the extracted WAV segment. Extracted SRT text goes to
+  the private Subtitler cue API; neither media nor subtitles are sent to the
+  Hub, ACP, or a public internet service.
 - No transcript, audio, subtitle, or sample media belongs in source control.
   The task prints a report; it does not persist one unless the operator
   explicitly redirects stdout.
@@ -65,9 +78,12 @@ Read this before implementing any slice in this set. Work only in the
 - Select audio and subtitle streams only by the explicit FFprobe global index
   supplied by the operator. Never assume index 0 or 1 is the desired track.
 - Require a two-letter source-language code and verify the requested clip ends
-  at or before the probed media duration before extraction.
-- ASR timestamps are relative to the extracted WAV. Add the requested source
-  start time exactly once, in integer milliseconds, before matching cues.
+  at or before `floor(probed_duration_seconds * 1000)` before extraction.
+- Convert ASR seconds to integer milliseconds once using `round(seconds *
+  1000)`. Reject start times outside `[0, duration_ms)`, reversed intervals,
+  or end times beyond `duration_ms` with `:word_timestamp_outside_clip`;
+  zero-duration words inside the clip are point events. Add the requested
+  source start time exactly once before matching cues.
 - Pair by interval overlap only. This is a timing aid, not semantic alignment;
   use half-open intervals `[start_ms, end_ms)`. A zero-duration transcript
   word is a point and matches a cue when `cue.start_ms <= t < cue.end_ms`.
@@ -91,8 +107,10 @@ must be served at runtime.
 
 ## Tests
 
-- Context, parser, alignment, and CLI tests live under
+- Context, Subtitler-client, alignment, and CLI tests live under
   `test/koe_frame/transcript_review*` and `test/mix/tasks/`.
+- The Subtitler HTTP client contract is tested through a local Req plug; do not
+  call a live service in CI.
 - Use fake MediaAnalysis/ASR adapters and temporary generated SRT/WAV files.
   CI must not call the NAS, Speaches, or copyrighted media.
 - The Speaches adapter test must exercise the multipart request/response
@@ -139,6 +157,7 @@ Run these commands in order from the app directory:
 mix compile --warnings-as-errors
 mix test test/koe_frame/transcript_review_test.exs
 mix test test/koe_frame/transcript_review/speaches_adapter_test.exs
+mix test test/mix/tasks/koe_frame.transcript_review_test.exs
 mix test test/koe_frame/media_analysis/ffmpex_adapter_test.exs
 mix test
 mix format --check-formatted

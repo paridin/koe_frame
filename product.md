@@ -1,7 +1,7 @@
 ---
 kind: product
 topic: koe-frame
-approved: 2026-09-27 by owner in conversation
+approved: P-01–P-05 on 2026-09-27; P-06 on 2026-09-29 by owner in conversation
 ---
 
 # KoeFrame — product
@@ -92,6 +92,22 @@ the direction changes.
 Done when: generated audio is a new reviewable track; the source video/audio is
 never overwritten.
 
+### P-06 — Compare spoken words with an existing subtitle
+
+1. Select a local media file and choose audio and subtitle streams by their
+   FFprobe global indexes.
+2. Request a 1–60 second transcript preview in an explicit source language.
+3. KoeFrame extracts the audio segment for its private Speaches service,
+   converts the selected text subtitle stream to SRT, and asks Subtitler's
+   private cue API for normalized cue IDs and time ranges.
+4. Review word-level source-media timestamps alongside overlapping subtitle
+   cues, including unmatched words and cues, before choosing corrections for a
+   later translation workflow.
+
+Done when: the Aoyama 30-second sample can align recognized words with the
+selected Spanish cues, while source media stays unchanged and temporary
+extractions are removed.
+
 ## Product boundaries
 
 - The Mac client reads local directories and handles transfer. The server owns
@@ -116,10 +132,11 @@ never overwritten.
   `Defdo.Order.resume(order_id, step_id, result)` after restoring tenant
   context at the callback edge. The step declares `pause_mode` and
   `input_config`; KoeFrame does not hold a worker polling the Hub.
-- Subtitler is a generic internal module with a stable translation contract.
-  It knows subtitle cue structure and translation options, not anime catalog
-  entities, Sonarr, NAS paths, or series lore. The media app may later extract
-  that module into a separately sellable package without changing its API.
+- Subtitler is a generic internal service with stable translation and cue
+  contracts. It owns cue IDs, cue timing and text normalization, and
+  translation options, not anime catalog entities, Sonarr, NAS paths, or series
+  lore. The media app may later extract that module into a separately sellable
+  package without changing its API.
 - Voice conversion, dub generation, YouTube recaps, LMS courses, and lesson
   authoring are later phases. They must not block the initial intake and
   subtitle workflow.

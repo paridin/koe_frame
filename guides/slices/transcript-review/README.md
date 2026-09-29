@@ -11,10 +11,14 @@ subtitle track before asking a model to translate anything.
 
 ## Slice order
 
-1. `01-aoyama-transcript-review.md` adds a bounded `mix` command that probes a
-   media file, extracts one audio segment and one subtitle stream, transcribes
-   the audio through the NAS Speaches service, and prints a JSON alignment
-   report. It does not persist media or call the Hub.
+1. Release Subtitler's cue-normalization API slice first so the private service
+   exposes `POST /api/cues/parse`.
+2. `01-aoyama-transcript-review.md` adds a bounded Mix command and public
+   KoeFrame functions that probe a media file, extract one audio segment and
+   one subtitle stream, transcribe through NAS Speaches, obtain normalized
+   cues from Subtitler, and print a JSON alignment report. It does not persist
+   media or call the Hub. The NAS smoke uses release RPC because the runtime
+   image has no Mix executable.
 
 ## Follow-up candidates
 

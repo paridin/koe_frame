@@ -22,8 +22,8 @@ This pilot makes that comparison repeatable on one short passage.
 2. The operator runs a transcript-review preview for a start time and a clip
    between 1 and 60 seconds, with an explicit source-language code.
 3. KoeFrame extracts only that audio segment, sends it to the configured
-   private Speaches service, and converts the selected subtitle stream to SRT
-   for cue parsing.
+   private Speaches service, converts the selected subtitle stream to SRT, and
+   sends the SRT text to Subtitler's private cue-parse API.
 4. The operator receives JSON containing the selected stream indexes, model
    and language, word-level transcript with source-media times, all subtitle
    cues overlapping the selected clip, and the cue IDs matched to each word.
@@ -44,7 +44,9 @@ the live NAS.
 - This is a one-segment operator experiment, not a full-episode workflow or a
   persistent review UI.
 - KoeFrame chooses media streams and owns extraction. Speaches receives only
-  the extracted audio segment over the configured private service endpoint.
+  the extracted audio segment over the configured private service endpoint;
+  Subtitler receives only the extracted SRT text over its private service
+  endpoint.
 - Speech recognition is evidence for subtitle review, not a translation and
   not a claim that ASR is authoritative. The report preserves the model's
   returned words and timings so the operator can identify recognition errors.
@@ -65,13 +67,12 @@ the live NAS.
   `Systran/faster-whisper-medium` available. The model remains runtime
   configurable.
 - uses: Req `0.7.4` — already locked by KoeFrame for multipart HTTP.
-- gap: reusable subtitle cue parser — local in this pilot because Subtitler
-  `0.1.10` is a standalone application whose parser is not exposed as a package
-  or parse endpoint, while KoeFrame needs to attach the selected media stream
-  and source-time offset. The normalized cue shape stays generic. Before
-  multiple consumers depend on it, extract that shape/parser into a shared
-  Subtitler capability or add a supported service contract; do not copy
-  Subtitler's application runtime into KoeFrame.
+- uses: Subtitler cue API — `POST /api/cues/parse` returns document-local cue
+  IDs, integer millisecond ranges, and text. Subtitler owns parsing; KoeFrame
+  retains stream metadata and handles source-time alignment.
+- precondition: release the Subtitler cue endpoint and make it reachable only
+  through its private service address before running this slice against NAS
+  media.
 - gap: durable full-track transcription — defer to a later KoeFrame slice
   using `defdo_order` after chunk limits, resume behavior, and storage
   retention are defined, as recorded in
