@@ -50,28 +50,44 @@ line numbers move, anchors do not.
 ## Step 1 — convert the selected subtitle stream to SRT
 
 1. Extend `MediaAnalysis.extract_subtitle/4` and its Ffmpex adapter so
-   `output_format: "srt"` transcodes the selected subtitle stream to SRT;
-   retain codec-copy behavior for existing `nil`/same-format use. ASS-to-SRT
-   needs the SRT muxer (`-f srt`) and subtitle codec (`-c:s srt`). Preserve
-   global stream mapping, no-overwrite behavior, and tagged extraction errors.
-2. Add an adapter test named
-   `converts ASS subtitle streams to SRT for cue parsing`. Assert the selected
-   global stream index, SRT codec/muxer, and no-overwrite behavior. Existing
-   copy-mode tests must continue to pass.
+   `output_format: nil` keeps codec-copy behavior and explicit
+   `output_format: "srt"` transcodes the selected subtitle stream to SRT.
+   ASS-to-SRT needs the SRT muxer (`-f srt`) and subtitle codec (`-c:s srt`).
+   Preserve global stream mapping, no-overwrite behavior, and tagged errors.
+2. Validate the selected subtitle codec before extraction. Support text codecs
+   `ass`, `ssa`, and `subrip` for this pilot; return
+   `{:error, :unsupported_subtitle_codec}` for unknown or bitmap codecs such
+   as PGS/DVD subtitles instead of exposing an opaque FFmpeg exit status.
+3. Correct the existing test at
+   `test/koe_frame/media_analysis/ffmpex_adapter_test.exs:88`: its current
+   `"srt"` case asserts codec copy and contradicts the requested conversion.
+   Change it to an `.ass` destination with `output_format: nil` to cover
+   same-format codec copy, then add a test named
+   `converts ASS subtitle streams to SRT for cue parsing` for explicit SRT
+   conversion. Both tests assert stream mapping and no-overwrite behavior.
 
 ## Step 2 — normalize cues and transcript words
 
 1. Add an SRT parser for the extracted output. Return ordered maps with `id`,
    `start_ms`, `end_ms`, and `text`. Derive each cue ID from subtitle stream
-   index plus cue ordinal. Preserve multiline text and reject malformed,
-   negative, or end-before-start timestamps with a tagged error.
+   cue ordinal only; keep the stream index in report metadata, not the generic
+   cue ID. Preserve multiline text and reject malformed, negative, or
+   non-positive cue intervals with a tagged error. Word timestamps may be
+   zero-duration point events as described below.
 2. Define transcript words with `text`, `start_ms`, and `end_ms` relative to
    the extracted WAV at the adapter boundary. Convert Speaches seconds to
-   integer milliseconds once. The context adds the source clip offset once
-   before matching; do not modify adapter-relative times.
-3. Add a pure interval-overlap aligner. Attach zero, one, or multiple cue IDs
-   to each word based on time overlap. Keep unmatched words/cues in the report;
-   do not infer semantic matches from text similarity.
+   integer milliseconds once. Reject negative values and `start_ms > end_ms`,
+   but preserve zero-duration words (`start_ms == end_ms`) as point events.
+   The context adds the source clip offset once before matching; do not modify
+   adapter-relative times.
+3. Add a pure interval-overlap aligner using half-open intervals `[start, end)`.
+   Attach zero, one, or multiple cue IDs to each word based on overlap. For a
+   zero-duration word at time `t`, match a cue when
+   `cue.start_ms <= t < cue.end_ms`. Keep unmatched words and unmatched cues
+   within the selected clip visible; do not infer semantic matches from text.
+4. Filter cues to those overlapping the requested source clip window
+   `[clip_start_ms, clip_start_ms + duration_ms)`. Preserve each included cue's
+   full source time range; exclude cues outside that window.
 
 ## Step 3 — call the private Speaches transcription API
 
@@ -85,7 +101,7 @@ line numbers move, anchors do not.
    multipart value and accepts `{value, options}` where options include
    `filename`; the pinned source is listed in `00-conventions.md`.
 3. Normalize response `words` entries (`word`, `start`, `end`) and require
-   numeric values where `0 <= start < end`. If no word entries arrive, return
+   numeric values where `0 <= start <= end`. If no word entries arrive, return
    `:word_timestamps_missing`; do not fall back to sentence-level timing.
    Return tagged errors for unavailable service, timeout, non-success HTTP,
    unauthorized response, malformed JSON, and malformed word entries. Do not
@@ -109,43 +125,55 @@ Speaches.
 ## Step 4 — provide a safe local operator command
 
 1. Add `mix koe_frame.transcript_review --file PATH --list-streams` to call
-   `MediaAnalysis.probe/1` and print stream index, type, codec, language, and
-   disposition as JSON. The operator selects tracks from this result; do not
-   call `ffprobe` directly from the Mix task.
+   `MediaAnalysis.probe/1` and print media duration plus each stream's global
+   index, type, codec, language, and disposition as JSON. The operator selects
+   tracks from this result; do not call `ffprobe` directly from the Mix task.
 2. Add preview switches `--audio-stream`, `--subtitle-stream`,
    `--source-language`, `--start-ms`, and `--duration-ms`. Require every
    switch; validate an absolute regular file, audio/subtitle stream kinds,
+   supported subtitle text codec, a two-letter source-language code,
    non-negative start, positive duration, and the 60,000 ms maximum before
-   extraction. The endpoint and model remain server configuration.
+   extraction. Require a known probed media duration and reject a clip whose
+   end exceeds it. The endpoint and model remain server configuration.
 3. Extract a 16 kHz mono WAV and selected subtitle SRT into a unique temporary
    directory. Run Speaches, parse cues, shift word times to the source
    timeline, then print one JSON report to stdout. Remove the directory in an
    `after` block on success and every error path. Report errors to stderr and
-   return non-zero without printing a partial report.
+   return non-zero without printing a partial report. Do not start the full
+   KoeFrame application, Repo, or Oban; start only Req and its dependencies if
+   they are needed by the adapter.
 4. Do not persist transcripts/cues or add a schema, migration, Oban worker,
    order, network route, or frontend in this pilot.
 
 The report contains `source_language`, `model`, selected audio/subtitle stream
 indexes, the source clip range, ordered words with absolute source
 `start_ms`/`end_ms` and `cue_ids`, and ordered cues with `id`, `start_ms`,
-`end_ms`, and `text`.
+`end_ms`, and `text` that overlap the selected clip. Keep
+`subtitle_stream_index` as report metadata; generic cue IDs contain only a cue
+ordinal, not a media stream index.
 
 ## Tests
 
 - `MediaAnalysis.FfmpexAdapterTest` — the new SRT case proves ASS conversion
-  selects the requested stream and will not overwrite output; current
-  codec-copy tests prove no regression.
+  selects the requested stream and will not overwrite output; the corrected
+  nil-format case proves codec-copy behavior.
 - `TranscriptReviewTest` — fake extraction/ASR proves stream selection, cue
   parsing, source-time offset, overlap IDs, unmatched words, and cleanup after
   success and adapter failure.
-- `TranscriptReviewTest` — invalid path/index/range and durations above
-  60,000 ms fail before extraction or ASR is called.
+- `TranscriptReviewTest` — zero-duration words match a containing cue as a
+  point event; cues touching but not entering a half-open clip window are
+  excluded.
+- `TranscriptReviewTest` — invalid path/index/language/range, a clip past the
+  probed media duration, and durations above 60,000 ms fail before extraction
+  or ASR is called.
+- `TranscriptReviewTest` — bitmap/unknown subtitle codecs return
+  `:unsupported_subtitle_codec` before FFmpeg is called.
 - `TranscriptReview.SpeachesAdapterTest` — local Req stub asserts multipart
   fields, file streaming, model/language, verbose JSON, word granularity,
   normalized millisecond times, and tagged timeout/status/schema errors.
-- `Mix.Tasks.KoeFrame.TranscriptReviewTest` — `--list-streams` and preview
-  print valid JSON; missing flags/provider failures return non-zero and no
-  partial report.
+- `Mix.Tasks.KoeFrame.TranscriptReviewTest` — `--list-streams` includes media
+  duration and global indexes; preview prints valid JSON; missing
+  flags/provider failures return non-zero and no partial report.
 - `mix test` — the full suite stays green with synthetic data only; no NAS,
   Speaches, or Aoyama media is needed.
 
@@ -173,6 +201,7 @@ mix test test/mix/tasks/koe_frame.transcript_review_test.exs
 mix test test/koe_frame/media_analysis/ffmpex_adapter_test.exs
 mix test
 mix format --check-formatted
+git diff --check
 ```
 
 ## Manual NAS smoke
@@ -183,14 +212,16 @@ copying media into the repository:
 
 ```sh
 mix koe_frame.transcript_review --file "$KOEFRAME_VIDEO" --list-streams
-mix koe_frame.transcript_review --file "$KOEFRAME_VIDEO" --audio-stream 1 --subtitle-stream 3 --source-language ja --start-ms 0 --duration-ms 30000
+mix koe_frame.transcript_review --file "$KOEFRAME_VIDEO" --audio-stream "$KOEFRAME_AUDIO_INDEX" --subtitle-stream "$KOEFRAME_SUBTITLE_INDEX" --source-language ja --start-ms 0 --duration-ms 30000
 ```
 
-Confirm the returned words have source times near the speech passages observed
-at 6–9 s and 13–18 s, and that cues with ranges 5.91–9.48 s and 13.19–18.49 s
-appear in the overlap results. Review transcript wording manually; the gate is
-timing/track association, not an assertion that ASR is error-free. Confirm the
-temporary directory is removed after the run.
+Set the stream-index variables from the immediately preceding `--list-streams`
+output; do not copy an index from another media file. On the already inspected
+Aoyama sample, confirm the returned words fall near the previously observed
+speech passages at 6–9 s and 13–18 s and pair with cues in the corresponding
+clip window. Review transcript wording manually; the gate is timing/track
+association, not a claim that ASR is error-free. Confirm the temporary
+directory is removed after the run.
 
 ## Ecosystem
 
@@ -204,8 +235,8 @@ temporary directory is removed after the run.
   `.ai/decisions/transcript-review-cue-contract.md`; move it to a shared
   Subtitler capability before a second consumer adopts it.
 - gap: Hub translation tasks — deferred until `defdo_memory_hub` task-job and
-  callback releases are verified. This slice sends no task payload outside
-  KoeFrame.
+  callback releases are verified, as accepted in the root product boundary.
+  This slice sends no task payload outside KoeFrame.
 
 ## Acceptance criteria
 
@@ -215,11 +246,15 @@ temporary directory is removed after the run.
   behavior.
 - [ ] A 30-second preview returns word timestamps and overlapping cue IDs on
   the source-video timeline.
-- [ ] Invalid input, malformed Speaches output, missing word timestamps,
-  timeout, and HTTP failure return tagged errors and remove temporary files.
+- [ ] Invalid input, unsupported subtitle codec, malformed Speaches output,
+  missing word timestamps, timeout, and HTTP failure return tagged errors and
+  remove temporary files.
+- [ ] Cue output contains only cues overlapping the clip; half-open interval
+  boundary and zero-duration word behavior matches the documented rules.
 - [ ] The CLI prints one valid JSON report on success and no partial report on
   failure; source video/subtitle bytes remain unchanged.
 - [ ] No real Aoyama media/transcript, schema, Hub call, or secret is added to
   the diff.
 - [ ] All verification commands pass and the manual NAS smoke confirms the
-  selected streams and source-time windows.
+  selected streams and source-time windows after selecting indexes from the
+  file's own probe output.

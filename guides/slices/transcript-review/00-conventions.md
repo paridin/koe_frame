@@ -40,6 +40,9 @@ Read this before implementing any slice in this set. Work only in the
 - The transcript-review context owns input validation, temporary-file
   lifecycle, ASR adapter routing, normalized word timestamps, and cue overlap
   reporting. The Speaches URL/model are server configuration, never CLI input.
+- `MediaStream.codec_name` is normalized by `MediaAnalysis.probe/1`; only
+  `ass`, `ssa`, and `subrip` are supported for subtitle-to-SRT conversion in
+  this pilot. Reject missing and other codec names before FFmpeg runs.
 - The first pilot accepts a local absolute path only through the operator's
   `mix` command. Do not add an HTTP endpoint that accepts a server path.
 - Speaches receives only the extracted WAV segment. Neither the original
@@ -61,10 +64,15 @@ Read this before implementing any slice in this set. Work only in the
   60,000 ms before calling `MediaAnalysis.extract_audio_segment/6`.
 - Select audio and subtitle streams only by the explicit FFprobe global index
   supplied by the operator. Never assume index 0 or 1 is the desired track.
+- Require a two-letter source-language code and verify the requested clip ends
+  at or before the probed media duration before extraction.
 - ASR timestamps are relative to the extracted WAV. Add the requested source
   start time exactly once, in integer milliseconds, before matching cues.
 - Pair by interval overlap only. This is a timing aid, not semantic alignment;
-  report zero matches and multiple matches honestly.
+  use half-open intervals `[start_ms, end_ms)`. A zero-duration transcript
+  word is a point and matches a cue when `cue.start_ms <= t < cue.end_ms`.
+  Report zero matches and multiple matches honestly. Include only cues
+  overlapping the selected clip window and preserve their full source times.
 - Always remove generated files in an `after` block, including when Req or
   parsing fails. Use a unique temporary directory and never overwrite source
   media.
@@ -113,12 +121,15 @@ editing because line numbers can move.
 | Extract subtitle | `Defdo.KoeFrame.MediaAnalysis.extract_subtitle/4` in `lib/koe_frame/media_analysis.ex`; adapter uses output muxer `-f` and currently copies the codec |
 | Extract ≤60s WAV | `Defdo.KoeFrame.MediaAnalysis.extract_audio_segment/6`; accepts `sample_rate` and `channels`, defaults to 16 kHz mono |
 | Ffmpex command boundary | `Defdo.KoeFrame.MediaAnalysis.FfmpexAdapter.subtitle_command/4` and `audio_command/6`; both are `@doc false` testable command builders |
+| ASS-to-SRT codec conversion | A synthetic ASS cue converted to SRT with `-map 0:0 -c:s srt -f srt` on authoring-machine FFmpeg 8.1.1 (2026-09-29); still require the NAS-image smoke because its FFmpeg build is separate |
 | Speaches STT | `POST {base_url}/v1/audio/transcriptions`, multipart `file` and `model`; NAS pilot also verified `language=ja`, `response_format=verbose_json`, `timestamp_granularities[]=word` |
 | Req multipart | Req `0.7.4` `form_multipart` accepts `File.Stream` values and `{value, options}` with `filename`, `content_type`, `size`; verified from Req's v0.7.4 docs/source |
 | Existing generic subtitle parser | Subtitler `0.1.10` `Subtitler.SRT.parse/1` returns `%{index, timing, lines}` but is `@moduledoc false` and not a dependency/API; do not compile against it in KoeFrame |
 
 Speaches source reference: `https://github.com/speaches-ai/speaches/blob/master/docs/usage/speech-to-text.md`.
-Req source reference: `https://req.hexdocs.pm/Req.Steps.html` (Req `0.7.4`).
+Req multipart source: `https://req.hexdocs.pm/Req.Steps.html` (Req `0.7.4`).
+Req request options: `https://req.hexdocs.pm/Req.html` (Req `0.7.4`; includes
+`request_timeout`, `receive_timeout`, and `max_retries`).
 
 ## Verification loop
 

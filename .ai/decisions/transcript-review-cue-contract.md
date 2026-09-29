@@ -22,10 +22,11 @@ requests. Calling it would either couple KoeFrame to an unsupported module or
 add a service hop just to parse text already extracted by KoeFrame.
 
 KoeFrame owns the media stream selection and extraction. For this pilot, it
-needs to preserve the FFprobe stream index and move word timings from the
-extracted-segment origin back to the video's source timeline. The cue parser
-therefore stays at that app boundary and emits only generic IDs, integer
-millisecond ranges, and text.
+needs to preserve the FFprobe stream index as report metadata and move word
+timings from the extracted-segment origin back to the video's source timeline.
+The cue parser therefore stays at that app boundary and emits generic ordinal
+IDs, integer millisecond ranges, and text. A media stream index is never part
+of the cue ID or cue fields.
 
 ## Consequences
 
@@ -38,3 +39,9 @@ millisecond ranges, and text.
   migrate both consumers. This pilot is not permission to duplicate an
   app-private parser.
 - The pilot stores no cue records and adds no migration.
+- This slice stops at a synchronous segment of at most 60 seconds. The
+  existing root product decision in `product.md` P-03/P-04 assigns durable
+  full-track localization to `defdo_order` and bounded translation execution
+  to the Hub. Those later workflows require the Hub task-job/callback release
+  and a tested `pause_mode`/resume path; this pilot must not emulate them with
+  polling, an Oban worker, or raw-media Hub requests.

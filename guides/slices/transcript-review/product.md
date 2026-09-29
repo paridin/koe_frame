@@ -1,7 +1,7 @@
 ---
 kind: product
 topic: koe-frame-transcript-review
-approved: 2026-09-29 by owner in conversation
+approved: 2026-09-29 by owner, who said "hagámoslo" in conversation
 ---
 
 # KoeFrame transcript review pilot — product
@@ -25,9 +25,9 @@ This pilot makes that comparison repeatable on one short passage.
    private Speaches service, and converts the selected subtitle stream to SRT
    for cue parsing.
 4. The operator receives JSON containing the selected stream indexes, model
-   and language, word-level transcript with source-media times, and each
-   subtitle cue whose interval overlaps each word. Unmatched words and cues
-   remain visible instead of being silently discarded.
+   and language, word-level transcript with source-media times, all subtitle
+   cues overlapping the selected clip, and the cue IDs matched to each word.
+   Unmatched words and cues within the clip remain visible.
 5. The operator checks the spoken Japanese against the existing Spanish cue
    and decides whether translation needs correction. The media and subtitle
    source files remain unchanged; extracted audio and subtitle files are
@@ -74,8 +74,11 @@ the live NAS.
   Subtitler's application runtime into KoeFrame.
 - gap: durable full-track transcription — defer to a later KoeFrame slice
   using `defdo_order` after chunk limits, resume behavior, and storage
-  retention are defined. The 60-second synchronous pilot does not need an
-  order, Oban worker, schema, or migration.
+  retention are defined, as recorded in
+  `.ai/decisions/transcript-review-cue-contract.md` and root `product.md`
+  P-03/P-04. The 60-second synchronous pilot does not need an order, Oban
+  worker, schema, or migration.
 - gap: ACP translation of transcript/cue batches — defer until the Hub's
   task-job API and signed callback path are available to both KoeFrame and
-  Subtitler.
+  Subtitler, as recorded in root `product.md` P-03/P-04. The local pilot sends
+  no content to ACP/the Hub.
