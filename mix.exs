@@ -113,6 +113,7 @@ defmodule Defdo.KoeFrame.MixProject do
       ],
       "assets.build": ["compile", "tailwind koe_frame", "esbuild koe_frame"],
       "assets.deploy": [
+        "compile",
         "tailwind koe_frame --minify",
         "esbuild koe_frame --minify",
         "phx.digest"

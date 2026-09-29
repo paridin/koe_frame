@@ -33,6 +33,7 @@ COPY assets/ assets/
 COPY lib/ lib/
 COPY priv/ priv/
 
+RUN mix compile --warnings-as-errors
 RUN mix assets.setup
 RUN mix assets.deploy
 RUN mix release
