@@ -26,7 +26,8 @@ defmodule Defdo.KoeFrame.MediaAnalysis.FfmpexAdapter do
   def extract_subtitle(source_path, stream_index, output_path, output_format) do
     execute_extraction(
       subtitle_command(source_path, stream_index, output_path, output_format),
-      output_path
+      output_path,
+      &verify_output/1
     )
   end
 
@@ -41,7 +42,8 @@ defmodule Defdo.KoeFrame.MediaAnalysis.FfmpexAdapter do
       ) do
     execute_extraction(
       audio_command(source_path, stream_index, start_ms, duration_ms, output_path, profile),
-      output_path
+      output_path,
+      &verify_audio_output(&1, profile.channels)
     )
   end
 
@@ -87,7 +89,7 @@ defmodule Defdo.KoeFrame.MediaAnalysis.FfmpexAdapter do
     end
   end
 
-  defp execute_extraction(command, output_path) do
+  defp execute_extraction(command, output_path, verify_output) do
     cond do
       not executable_available?(:ffmpeg_path, "ffmpeg") ->
         {:error, :ffmpeg_unavailable}
@@ -96,7 +98,7 @@ defmodule Defdo.KoeFrame.MediaAnalysis.FfmpexAdapter do
         {:error, :output_already_exists}
 
       true ->
-        execute_and_verify(command, output_path)
+        execute_and_verify(command, output_path, verify_output)
     end
   rescue
     _exception -> {:error, {:ffmpeg_failed, 1}}
@@ -104,10 +106,10 @@ defmodule Defdo.KoeFrame.MediaAnalysis.FfmpexAdapter do
     _kind, _reason -> {:error, {:ffmpeg_failed, 1}}
   end
 
-  defp execute_and_verify(command, output_path) do
+  defp execute_and_verify(command, output_path, verify_output) do
     case FFmpex.execute(command) do
       {:ok, _command_output} ->
-        verify_output(output_path)
+        verify_output.(output_path)
 
       {:error, {_command_output, status}} when is_integer(status) and status >= 0 ->
         {:error, {:ffmpeg_failed, status}}
@@ -122,6 +124,66 @@ defmodule Defdo.KoeFrame.MediaAnalysis.FfmpexAdapter do
       {:ok, %{type: :regular, size: size}} when size > 0 -> {:ok, path}
       {:ok, %{type: :regular, size: 0}} -> {:error, :output_empty}
       _other -> {:error, :output_not_created}
+    end
+  end
+
+  @doc false
+  def verify_audio_output(path, channels)
+      when is_binary(path) and is_integer(channels) and channels > 0 do
+    case File.stat(path) do
+      {:ok, %{type: :regular, size: size}} when size > 0 ->
+        if wav_has_audio_samples?(path, size, channels),
+          do: {:ok, path},
+          else: {:error, :output_empty}
+
+      {:ok, %{type: :regular, size: 0}} ->
+        {:error, :output_empty}
+
+      _other ->
+        {:error, :output_not_created}
+    end
+  end
+
+  def verify_audio_output(_path, _channels), do: {:error, :output_empty}
+
+  defp wav_has_audio_samples?(path, file_size, channels) do
+    with {:ok, has_samples} <-
+           File.open(path, [:read, :binary], fn device ->
+             case IO.binread(device, 12) do
+               <<"RIFF", _riff_size::binary-size(4), "WAVE">> ->
+                 wav_chunks_have_samples?(device, file_size, channels * 2)
+
+               _other ->
+                 false
+             end
+           end) do
+      has_samples
+    else
+      _error -> false
+    end
+  rescue
+    _exception -> false
+  end
+
+  defp wav_chunks_have_samples?(device, file_size, bytes_per_frame) do
+    case IO.binread(device, 8) do
+      <<"data", data_size::little-32>> ->
+        with true <- data_size >= bytes_per_frame,
+             true <- rem(data_size, bytes_per_frame) == 0,
+             {:ok, data_start} <- :file.position(device, :cur) do
+          data_start + data_size <= file_size
+        else
+          _other -> false
+        end
+
+      <<_chunk_id::binary-size(4), chunk_size::little-32>> ->
+        case :file.position(device, {:cur, chunk_size + rem(chunk_size, 2)}) do
+          {:ok, _position} -> wav_chunks_have_samples?(device, file_size, bytes_per_frame)
+          _error -> false
+        end
+
+      _other ->
+        false
     end
   end
 

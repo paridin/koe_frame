@@ -122,6 +122,50 @@ defmodule Defdo.KoeFrame.MediaAnalysis.FfmpexAdapterTest do
     refute "-y" in args
   end
 
+  test "audio output verification rejects a WAV header with no sample frames" do
+    path = wav_path(<<>>)
+
+    assert File.stat!(path).size == 78
+    assert {:error, :output_empty} = FfmpexAdapter.verify_audio_output(path, 1)
+  end
+
+  test "audio output verification skips metadata and requires a complete PCM frame" do
+    path = wav_path(<<0, 0, 0, 0>>)
+
+    assert {:ok, ^path} = FfmpexAdapter.verify_audio_output(path, 2)
+    assert {:error, :output_empty} = FfmpexAdapter.verify_audio_output(path, 3)
+  end
+
+  defp wav_path(data) do
+    encoder = "Lavf59.27.100"
+    encoder_size = byte_size(encoder)
+    encoder_padding = if rem(encoder_size, 2) == 1, do: <<0>>, else: <<>>
+    info_chunk = "ISFT" <> <<encoder_size::little-32>> <> encoder <> encoder_padding
+    list_payload = "INFO" <> info_chunk
+    list_chunk = "LIST" <> <<byte_size(list_payload)::little-32>> <> list_payload
+
+    format =
+      <<1::little-16, 1::little-16, 16_000::little-32, 32_000::little-32, 2::little-16,
+        16::little-16>>
+
+    format_chunk = "fmt " <> <<byte_size(format)::little-32>> <> format
+    data_padding = if rem(byte_size(data), 2) == 1, do: <<0>>, else: <<>>
+    data_chunk = "data" <> <<byte_size(data)::little-32>> <> data <> data_padding
+    chunks = format_chunk <> list_chunk <> data_chunk
+    riff_size = byte_size("WAVE" <> chunks)
+    wave = "RIFF" <> <<riff_size::little-32>> <> "WAVE" <> chunks
+
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "koe-frame-media-analysis-output-#{System.unique_integer([:positive])}.wav"
+      )
+
+    File.write!(path, wave)
+    on_exit(fn -> File.rm(path) end)
+    path
+  end
+
   defp adjacent?(list, first, second) do
     list
     |> Enum.chunk_every(2, 1, :discard)
