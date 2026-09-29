@@ -1,0 +1,39 @@
+labels:
+  platform: linux/amd64
+
+when:
+  - event: [push, manual]
+
+steps:
+  - name: verify
+    image: hexpm/elixir:1.19.5-erlang-28.3.1-ubuntu-noble-20260210.1
+    environment:
+      HEX_ORG_TOKEN:
+        from_secret: hex_org_token
+      PGHOST: postgres
+    commands:
+      - |
+        set -eu
+        apt-get update -qq
+        apt-get install -y --no-install-recommends build-essential ca-certificates cargo curl git nodejs npm
+        mix do local.hex --force + local.rebar --force
+        if [ -z "$${HEX_ORG_TOKEN:-}" ]; then
+          echo "hex_org_token is required to resolve private Defdo dependencies." >&2
+          exit 1
+        fi
+        mix hex.organization auth defdo --key "$$HEX_ORG_TOKEN"
+        mix deps.get --check-locked
+        mix format --check-formatted
+        mix compile --warnings-as-errors
+        MIX_ENV=test mix compile --warnings-as-errors
+        MIX_ENV=test mix test
+        MIX_ENV=prod mix assets.setup
+        MIX_ENV=prod mix assets.deploy
+        MIX_ENV=prod mix release
+
+services:
+  - name: postgres
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres

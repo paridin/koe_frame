@@ -26,6 +26,7 @@ erl_crash.dump
 koe_frame-*.tar
 
 # Ignore assets that are produced by build tools.
+/priv/bin/
 /priv/static/assets/
 
 # Ignore digested assets cache.

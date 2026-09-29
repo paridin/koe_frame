@@ -4,7 +4,7 @@ defmodule Defdo.KoeFrame.MixProject do
   def project do
     [
       app: :koe_frame,
-      version: "0.1.0",
+      version: File.read!(Path.join(__DIR__, "VERSION")) |> String.trim(),
       elixir: "~> 1.19",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
@@ -107,7 +107,10 @@ defmodule Defdo.KoeFrame.MixProject do
         "compile.rambo",
         "test"
       ],
-      "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
+      "assets.setup": [
+        "tailwind.install 'https://storage.defdo.de/tailwind_cli_daisyui/v$version/tailwindcss-$target'",
+        "esbuild.install --if-missing"
+      ],
       "assets.build": ["compile", "tailwind koe_frame", "esbuild koe_frame"],
       "assets.deploy": [
         "tailwind koe_frame --minify",

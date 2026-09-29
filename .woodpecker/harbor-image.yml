@@ -1,0 +1,113 @@
+# A unique development tag runs the release gates and then publishes an amd64
+# image for the NAS pilot. Use a new VERSION for every attempted release; do
+# not move or rebuild an already published tag. This pipeline does not deploy
+# the KoeFrame web server; NAS validation runs bounded media-analysis commands
+# as a one-shot process.
+labels:
+  platform: linux/amd64
+
+when:
+  - event: tag
+
+steps:
+  - name: preflight-secrets
+    image: alpine:3
+    environment:
+      HEX_ORG_TOKEN:
+        from_secret: hex_org_token
+      DOCKER_USERNAME:
+        from_secret: docker_username
+      DOCKER_PASSWORD:
+        from_secret: docker_password
+    commands:
+      - |
+        set -eu
+        missing=""
+        [ -n "$$HEX_ORG_TOKEN" ] || missing="$$missing HEX_ORG_TOKEN"
+        [ -n "$$DOCKER_USERNAME" ] || missing="$$missing DOCKER_USERNAME"
+        [ -n "$$DOCKER_PASSWORD" ] || missing="$$missing DOCKER_PASSWORD"
+        if [ -n "$$missing" ]; then
+          echo "Missing Woodpecker secrets for this repository:$$missing" >&2
+          exit 1
+        fi
+        echo "Required build secrets are present."
+
+  - name: prepare
+    image: alpine:3
+    depends_on:
+      - preflight-secrets
+    commands:
+      - |
+        set -eu
+        version=$$(tr -d '[:space:]' < VERSION)
+        test "$$version" = "$$CI_COMMIT_TAG"
+        {
+          echo "REGISTRY_HOST=hub.defdo.ninja"
+          echo "IMAGE_REPO=hub.defdo.ninja/defdo/koe_frame"
+          echo "VERSION=$$CI_COMMIT_TAG"
+          echo "GIT_SHA=$$CI_COMMIT_SHA"
+        } > .ci-image-env
+
+  - name: verify-release
+    image: hexpm/elixir:1.19.5-erlang-28.3.1-ubuntu-noble-20260210.1
+    depends_on:
+      - preflight-secrets
+    environment:
+      HEX_ORG_TOKEN:
+        from_secret: hex_org_token
+      PGHOST: postgres
+    commands:
+      - |
+        set -eu
+        apt-get update -qq
+        apt-get install -y --no-install-recommends build-essential ca-certificates cargo curl git nodejs npm
+        mix do local.hex --force + local.rebar --force
+        mix hex.organization auth defdo --key "$$HEX_ORG_TOKEN"
+        mix deps.get --check-locked
+        mix format --check-formatted
+        mix compile --warnings-as-errors
+        MIX_ENV=test mix compile --warnings-as-errors
+        MIX_ENV=test mix test
+        MIX_ENV=prod mix assets.setup
+        MIX_ENV=prod mix assets.deploy
+        MIX_ENV=prod mix release
+
+  - name: build-amd64
+    image: moby/buildkit:v0.23.2
+    depends_on:
+      - prepare
+      - verify-release
+    environment:
+      HEX_ORG_TOKEN:
+        from_secret: hex_org_token
+      DOCKER_USERNAME:
+        from_secret: docker_username
+      DOCKER_PASSWORD:
+        from_secret: docker_password
+      BUILDKIT_HOST: tcp://buildkit-amd64.defdo-ci.svc.cluster.local:1234
+    commands:
+      - set -eu
+      - . ./.ci-image-env
+      - export DOCKER_CONFIG=/tmp/dockercfg
+      - mkdir -p "$$DOCKER_CONFIG"
+      - |
+        auth=$$(printf '%s:%s' "$$DOCKER_USERNAME" "$$DOCKER_PASSWORD" | base64 -w0)
+        printf '{"auths":{"%s":{"auth":"%s"}}}\n' "$$REGISTRY_HOST" "$$auth" \
+          > "$$DOCKER_CONFIG/config.json"
+        buildctl --addr "$$BUILDKIT_HOST" debug workers
+        buildctl --addr "$$BUILDKIT_HOST" build \
+          --frontend dockerfile.v0 \
+          --local context=. \
+          --local dockerfile=. \
+          --opt filename=Dockerfile \
+          --opt platform=linux/amd64 \
+          --opt build-arg:VCS_REF=$$GIT_SHA \
+          --secret id=hex_org_token,env=HEX_ORG_TOKEN \
+          --output "type=image,\"name=$${IMAGE_REPO}:$${VERSION},$${IMAGE_REPO}:sha-$${GIT_SHA}\",push=true"
+
+services:
+  - name: postgres
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
