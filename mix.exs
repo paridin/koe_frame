@@ -4,7 +4,7 @@ defmodule Defdo.KoeFrame.MixProject do
   def project do
     [
       app: :koe_frame,
-      version: File.read!(Path.join(__DIR__, "VERSION")) |> String.trim(),
+      version: File.read!("VERSION") |> String.trim(),
       elixir: "~> 1.19",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
@@ -41,13 +41,13 @@ defmodule Defdo.KoeFrame.MixProject do
   defp deps do
     [
       {:phoenix, "~> 1.8.15"},
-      {:phoenix_ecto, "~> 4.5"},
-      {:ecto_sql, "~> 3.13"},
-      {:postgrex, ">= 0.0.0"},
-      {:phoenix_html, "~> 4.1"},
-      {:phoenix_live_reload, "~> 1.2", only: :dev},
+      {:phoenix_ecto, "~> 4.7"},
+      {:ecto_sql, "~> 3.14"},
+      {:postgrex, "~> 0.22.0"},
+      {:phoenix_html, "~> 4.3"},
+      {:phoenix_live_reload, "~> 1.7", only: :dev},
       {:phoenix_live_view, "~> 1.2.0"},
-      {:lazy_html, ">= 0.1.0", only: :test},
+      {:lazy_html, "~> 0.1.0", only: :test},
       {:phoenix_live_dashboard, "~> 0.8.3"},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
       {:tailwind, "~> 0.5", runtime: Mix.env() == :dev},
@@ -65,21 +65,21 @@ defmodule Defdo.KoeFrame.MixProject do
        app: false,
        compile: false,
        depth: 1},
-      {:swoosh, "~> 1.16"},
-      {:req, "~> 0.5"},
-      {:telemetry_metrics, "~> 1.0"},
-      {:telemetry_poller, "~> 1.0"},
+      {:swoosh, "~> 1.28"},
+      {:req, "~> 0.7.0"},
+      {:telemetry_metrics, "~> 1.2"},
+      {:telemetry_poller, "~> 1.3"},
       {:gettext, "~> 1.0"},
-      {:jason, "~> 1.2"},
+      {:jason, "~> 1.4"},
       {:dns_cluster, "~> 0.2.0"},
       {:defdo_migrator, "~> 0.4", organization: "defdo"},
       {:defdo_tasks, "~> 0.7", organization: "defdo"},
       {:defdo_order, "~> 0.7", organization: "defdo"},
-      {:defdo_tenant, "~> 0.16", organization: "defdo"},
+      {:defdo_tenant, "~> 0.17.0", organization: "defdo"},
       {:defdo_vault, "~> 0.16", organization: "defdo"},
       {:defdo_uploader, "~> 0.3", organization: "defdo"},
       {:ffmpex, "~> 0.11.1"},
-      {:bandit, "~> 1.5"}
+      {:bandit, "~> 1.12"}
     ]
   end
 

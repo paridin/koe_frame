@@ -10,7 +10,8 @@ Read this before implementing any slice in this set. Work only in the
 
 ## Environment and build
 
-- Base commit: KoeFrame `0.1.0-dev.2`, commit `9cee0baa070041d9d7c00e8c1c92d49b4e7ba2ba`.
+- Base release: KoeFrame `0.1.0-dev.3`, which includes MediaAnalysis from the
+  media pilot merged in PR #1.
 - Run Mix commands from the repository root. The app targets Elixir `~> 1.19`
   and Phoenix `~> 1.8.15`.
 - Req is already in `mix.exs`; the checked-in lock resolves Req `0.7.4`. Do not
