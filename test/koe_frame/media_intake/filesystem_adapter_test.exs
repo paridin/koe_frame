@@ -166,6 +166,31 @@ defmodule Defdo.KoeFrame.MediaIntake.FilesystemAdapterTest do
     refute File.dir?(Path.join(root, tenant_id))
   end
 
+  test "a missing source does not create directories for a failed recovery" do
+    root =
+      Path.join(
+        System.user_home!(),
+        ".koe-frame-missing-source-root-#{System.unique_integer([:positive])}"
+      )
+
+    source = root <> "-missing.mkv"
+    tenant_id = Ecto.UUID.generate()
+    intake_id = Ecto.UUID.generate()
+    object_key = Path.join([tenant_id, intake_id, "Season 01/episode.mkv"])
+
+    on_exit(fn -> File.rm_rf!(root) end)
+
+    assert {:error, :staging_file_missing} =
+             FilesystemAdapter.upload(
+               source,
+               object_key,
+               %{root: root, owner: nil, file_mode: 0o640, directory_mode: 0o750},
+               expected_sha256: String.duplicate("0", 64)
+             )
+
+    refute File.dir?(Path.join(root, tenant_id))
+  end
+
   test "publishing rejects a storage root beneath a group-writable parent" do
     parent =
       Path.join(

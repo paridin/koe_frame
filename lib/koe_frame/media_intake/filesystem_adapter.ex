@@ -121,9 +121,7 @@ defmodule Defdo.KoeFrame.MediaIntake.FilesystemAdapter do
         end
 
       {:error, :enoent} ->
-        with :ok <- ensure_parent_directories(root, destination, config) do
-          recover_linked_file(destination, expected_sha256, config)
-        end
+        recover_linked_file(destination, expected_sha256, config)
 
       {:ok, _info} ->
         {:error, :unsafe_staging_file}

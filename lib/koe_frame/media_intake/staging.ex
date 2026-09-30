@@ -21,13 +21,12 @@ defmodule Defdo.KoeFrame.MediaIntake.Staging do
   @spec prepare_session(Upload.t()) :: :ok | {:error, term()}
   def prepare_session(%Upload{} = upload) do
     base = Path.join(root!(), "uploads")
-    tenant_dir = Path.join(base, upload.tenant_id)
 
     with :ok <- ensure_tenant_scope(upload),
+         {:ok, path} <- session_path(upload),
          :ok <- ensure_storage_root(),
          {:ok, _base} <- ensure_directory(base, @private_directory_mode),
-         {:ok, _dir} <- ensure_directory(tenant_dir, @private_directory_mode),
-         {:ok, path} <- session_path(upload),
+         {:ok, _dir} <- ensure_directory(session_directory(upload), @private_directory_mode),
          :ok <- create_partial_file(path, upload.upload_offset),
          :ok <- sync_file(path),
          :ok <- sync_directory(Path.dirname(path)) do

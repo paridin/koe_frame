@@ -251,6 +251,22 @@ defmodule Defdo.KoeFrame.MediaIntake.UploadsTest do
     assert File.read!(other_tenant_partial) == "other tenant content"
   end
 
+  test "invalid tenant IDs cannot create or chmod directories outside the staging root" do
+    root = Application.fetch_env!(:koe_frame, :media_staging_root)
+    tenant_id = "../../escaped-#{System.unique_integer([:positive])}"
+    upload = %Upload{tenant_id: tenant_id, id: Ecto.UUID.generate(), upload_offset: 0}
+    escaped_directory = Path.expand(Path.join([root, "uploads", tenant_id]))
+
+    File.mkdir_p!(escaped_directory)
+    File.chmod!(escaped_directory, 0o755)
+    Context.put(Context.new(tenant_id))
+
+    assert {:error, :invalid_upload_identifier} = Staging.prepare_session(upload)
+    assert {:ok, %{mode: mode}} = File.lstat(escaped_directory)
+    assert band(mode, 0o777) == 0o755
+    refute File.dir?(root)
+  end
+
   test "fails closed when the tenant edge has not established context" do
     Context.clear()
 
