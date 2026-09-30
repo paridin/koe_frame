@@ -63,7 +63,7 @@ the live NAS.
 
 ## Ecosystem
 
-- uses: `Defdo.KoeFrame.MediaAnalysis` at `0.1.0-dev.2` — probes streams and
+- uses: `Defdo.KoeFrame.MediaAnalysis` at `0.1.0-dev.3` — probes streams and
   creates bounded audio/subtitle extraction files; keep FFmpeg behind this
   context.
 - uses: Speaches OpenAI-compatible STT API — local NAS service; the pilot has
