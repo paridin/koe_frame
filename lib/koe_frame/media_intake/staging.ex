@@ -11,6 +11,7 @@ defmodule Defdo.KoeFrame.MediaIntake.Staging do
   import Bitwise, only: [band: 2]
 
   alias Defdo.KoeFrame.MediaIntake.{Digest, FilesystemAdapter, PathSafety, RelativePath, Upload}
+  alias Defdo.Tenant.Context
 
   @max_chunk_bytes 8 * 1024 * 1024
   @partial_file_mode 0o600
@@ -22,7 +23,8 @@ defmodule Defdo.KoeFrame.MediaIntake.Staging do
     base = Path.join(root!(), "uploads")
     tenant_dir = Path.join(base, upload.tenant_id)
 
-    with :ok <- ensure_storage_root(),
+    with :ok <- ensure_tenant_scope(upload),
+         :ok <- ensure_storage_root(),
          {:ok, _base} <- ensure_directory(base, @private_directory_mode),
          {:ok, _dir} <- ensure_directory(tenant_dir, @private_directory_mode),
          {:ok, path} <- session_path(upload),
@@ -44,7 +46,8 @@ defmodule Defdo.KoeFrame.MediaIntake.Staging do
         {:error, :chunk_too_large}
 
       true ->
-        with {:ok, path} <- session_path(upload),
+        with :ok <- ensure_tenant_scope(upload),
+             {:ok, path} <- session_path(upload),
              :ok <- prepare_session(upload),
              :ok <- append_at(path, offset, chunk) do
           :ok
@@ -54,7 +57,8 @@ defmodule Defdo.KoeFrame.MediaIntake.Staging do
 
   @spec staged_path(Upload.t()) :: {:ok, String.t()} | {:error, term()}
   def staged_path(%Upload{} = upload) do
-    with {:ok, relative_path} <- RelativePath.validate(upload.relative_path),
+    with :ok <- ensure_tenant_scope(upload),
+         {:ok, relative_path} <- RelativePath.validate(upload.relative_path),
          :ok <- validate_uuid(upload.tenant_id),
          :ok <- validate_uuid(upload.intake_id) do
       intake_root = Path.join([root!(), "intakes", upload.tenant_id, upload.intake_id])
@@ -68,7 +72,8 @@ defmodule Defdo.KoeFrame.MediaIntake.Staging do
 
   @spec finalize(Upload.t()) :: :ok | {:error, term()}
   def finalize(%Upload{} = upload) do
-    with :ok <- ensure_storage_root(),
+    with :ok <- ensure_tenant_scope(upload),
+         :ok <- ensure_storage_root(),
          {:ok, source_path} <- session_path(upload),
          {:ok, object_key} <- object_key(upload) do
       case storage_adapter().upload(source_path, object_key, storage_config(),
@@ -82,7 +87,8 @@ defmodule Defdo.KoeFrame.MediaIntake.Staging do
 
   @spec remove_session(Upload.t()) :: :ok | {:error, term()}
   def remove_session(%Upload{} = upload) do
-    with {:ok, path} <- session_path(upload) do
+    with :ok <- ensure_tenant_scope(upload),
+         {:ok, path} <- session_path(upload) do
       case File.rm(path) do
         :ok -> sync_directory(Path.dirname(path))
         {:error, :enoent} -> :ok
@@ -93,7 +99,8 @@ defmodule Defdo.KoeFrame.MediaIntake.Staging do
 
   @spec verify_staged(Upload.t()) :: :ok | {:error, term()}
   def verify_staged(%Upload{} = upload) do
-    with :ok <- ensure_storage_root(),
+    with :ok <- ensure_tenant_scope(upload),
+         :ok <- ensure_storage_root(),
          {:ok, destination} <- staged_path(upload),
          :ok <- validate_staged_directories(destination),
          {:ok, %{type: :regular}} <- File.lstat(destination),
@@ -350,6 +357,18 @@ defmodule Defdo.KoeFrame.MediaIntake.Staging do
       Path.expand(root)
     else
       raise ArgumentError, ":media_staging_root must be an absolute path"
+    end
+  end
+
+  defp ensure_tenant_scope(%Upload{tenant_id: upload_tenant_id}) do
+    case Context.tenant_id() do
+      tenant_id when is_binary(tenant_id) and tenant_id != "" ->
+        if tenant_id == upload_tenant_id,
+          do: :ok,
+          else: {:error, :tenant_context_mismatch}
+
+      _missing_tenant ->
+        {:error, :missing_tenant_context}
     end
   end
 end

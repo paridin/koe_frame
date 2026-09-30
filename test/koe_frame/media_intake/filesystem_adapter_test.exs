@@ -135,6 +135,37 @@ defmodule Defdo.KoeFrame.MediaIntake.FilesystemAdapterTest do
     refute File.exists?(Path.join(external, "intake/episode.mkv"))
   end
 
+  test "checksum mismatch does not create directories for an untrusted object key" do
+    root =
+      Path.join(
+        System.user_home!(),
+        ".koe-frame-checksum-root-#{System.unique_integer([:positive])}"
+      )
+
+    source = root <> "-source.mkv"
+    tenant_id = Ecto.UUID.generate()
+    intake_id = Ecto.UUID.generate()
+
+    File.write!(source, "private media bytes")
+
+    on_exit(fn ->
+      File.rm_rf!(root)
+      File.rm(source)
+    end)
+
+    object_key = Path.join([tenant_id, intake_id, "Season 01/Disc 01/episode.mkv"])
+
+    assert {:error, :checksum_mismatch} =
+             FilesystemAdapter.upload(
+               source,
+               object_key,
+               %{root: root, owner: nil, file_mode: 0o640, directory_mode: 0o750},
+               expected_sha256: String.duplicate("0", 64)
+             )
+
+    refute File.dir?(Path.join(root, tenant_id))
+  end
+
   test "publishing rejects a storage root beneath a group-writable parent" do
     parent =
       Path.join(

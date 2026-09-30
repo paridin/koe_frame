@@ -20,8 +20,14 @@ defmodule Defdo.KoeFrame.MediaIntake.FilesystemAdapter do
   def upload(source_path, object_key, %{root: root} = config, opts) do
     with {:ok, destination} <- target_path(root, object_key),
          :ok <- ensure_root(root, config),
-         :ok <- ensure_parent_directories(root, destination, config),
-         :ok <- publish_verified_file(source_path, destination, opts[:expected_sha256], config) do
+         :ok <-
+           publish_verified_file(
+             source_path,
+             destination,
+             opts[:expected_sha256],
+             root,
+             config
+           ) do
       {:ok,
        %{
          url: file_url(destination),
@@ -105,16 +111,19 @@ defmodule Defdo.KoeFrame.MediaIntake.FilesystemAdapter do
     end
   end
 
-  defp publish_verified_file(source_path, destination, expected_sha256, config) do
+  defp publish_verified_file(source_path, destination, expected_sha256, root, config) do
     case File.lstat(source_path) do
       {:ok, %{type: :regular}} ->
         with :ok <- verify_digest(source_path, expected_sha256),
+             :ok <- ensure_parent_directories(root, destination, config),
              :ok <- link_staged_file(source_path, destination, expected_sha256, config) do
           :ok
         end
 
       {:error, :enoent} ->
-        recover_linked_file(destination, expected_sha256, config)
+        with :ok <- ensure_parent_directories(root, destination, config) do
+          recover_linked_file(destination, expected_sha256, config)
+        end
 
       {:ok, _info} ->
         {:error, :unsafe_staging_file}

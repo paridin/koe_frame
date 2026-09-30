@@ -78,7 +78,7 @@ defmodule Defdo.KoeFrame.MediaIntake.Uploads do
              finalize_locked_upload(upload)
            end) do
         {:ok, %Upload{} = upload} -> {:ok, upload}
-        {:ok, {:error, :checksum_mismatch}} -> {:error, :checksum_mismatch}
+        {:ok, {:error, reason}} -> {:error, reason}
         {:error, reason} -> {:error, reason}
       end
     end
@@ -178,7 +178,10 @@ defmodule Defdo.KoeFrame.MediaIntake.Uploads do
           |> Ecto.Changeset.change(status: :checksum_mismatch)
           |> Repo.update!()
 
-          {:error, :checksum_mismatch}
+          case Staging.remove_session(upload) do
+            :ok -> {:error, :checksum_mismatch}
+            {:error, reason} -> {:error, {:checksum_mismatch_cleanup_failed, reason}}
+          end
 
         {:error, reason} ->
           Repo.rollback({:staging_finalize_failed, reason})

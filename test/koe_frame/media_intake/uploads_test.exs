@@ -132,8 +132,19 @@ defmodule Defdo.KoeFrame.MediaIntake.UploadsTest do
     assert {:ok, upload} = Uploads.create_upload(attrs)
     assert {:ok, %{upload_offset: offset}} = Uploads.append_chunk(upload.id, 0, bytes)
     assert offset == byte_size(bytes)
+
+    partial_path =
+      Path.join([
+        Application.fetch_env!(:koe_frame, :media_staging_root),
+        "uploads",
+        upload.tenant_id,
+        upload.id <> ".part"
+      ])
+
+    assert File.exists?(partial_path)
     assert {:error, :checksum_mismatch} = Uploads.finalize_upload(upload.id)
     assert {:ok, %{status: :checksum_mismatch}} = Uploads.get_upload(upload.id)
+    refute File.exists?(partial_path)
   end
 
   test "a retry checks that an already staged object is still present and intact" do
@@ -175,8 +186,8 @@ defmodule Defdo.KoeFrame.MediaIntake.UploadsTest do
   end
 
   test "applies the configured staging owner and group" do
-    parent_stat = File.stat!(File.cwd!())
-    owner = {parent_stat.uid, parent_stat.gid}
+    owner_stat = File.stat!(System.user_home!())
+    owner = {owner_stat.uid, owner_stat.gid}
     Application.put_env(:koe_frame, :media_staging_owner, owner)
 
     bytes = "owner and group"
@@ -188,13 +199,13 @@ defmodule Defdo.KoeFrame.MediaIntake.UploadsTest do
     assert {:ok, staged} = Uploads.finalize_upload(upload.id)
     assert {:ok, path} = Staging.staged_path(staged)
     stat = File.stat!(path)
-    parent_stat = File.stat!(Path.dirname(path))
+    directory_stat = File.stat!(Path.dirname(path))
 
     assert {stat.uid, stat.gid} == owner
     assert band(stat.mode, 0o777) == 0o640
-    assert parent_stat.uid == File.stat!(File.cwd!()).uid
-    assert parent_stat.gid == elem(owner, 1)
-    assert band(parent_stat.mode, 0o777) == 0o750
+    assert directory_stat.uid == owner_stat.uid
+    assert directory_stat.gid == elem(owner, 1)
+    assert band(directory_stat.mode, 0o777) == 0o750
   end
 
   test "writes use process tenant and another tenant cannot discover the upload", %{
@@ -215,6 +226,29 @@ defmodule Defdo.KoeFrame.MediaIntake.UploadsTest do
 
     assert {:ok, nil} = Uploads.get_upload(upload.id)
     assert {:ok, []} = Uploads.list_intake_uploads(intake_id)
+  end
+
+  test "staging operations reject an upload record for another process tenant", %{tenant: tenant} do
+    other_tenant = tenant_fixture!("upload-c")
+    {:ok, upload} = Uploads.create_upload(upload_attrs(Ecto.UUID.generate(), "episode.mkv", "x"))
+    forged_upload = %{upload | tenant_id: other_tenant.tenant_id}
+
+    other_tenant_partial =
+      Path.join([
+        Application.fetch_env!(:koe_frame, :media_staging_root),
+        "uploads",
+        other_tenant.tenant_id,
+        upload.id <> ".part"
+      ])
+
+    File.mkdir_p!(Path.dirname(other_tenant_partial))
+    File.write!(other_tenant_partial, "other tenant content")
+
+    assert Context.tenant_id() == tenant.tenant_id
+    assert {:error, :tenant_context_mismatch} = Staging.prepare_session(forged_upload)
+    assert {:error, :tenant_context_mismatch} = Staging.staged_path(forged_upload)
+    assert {:error, :tenant_context_mismatch} = Staging.remove_session(forged_upload)
+    assert File.read!(other_tenant_partial) == "other tenant content"
   end
 
   test "fails closed when the tenant edge has not established context" do
