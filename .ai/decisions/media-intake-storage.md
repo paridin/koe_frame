@@ -1,7 +1,7 @@
 # Media intake storage boundary
 
-**Recorded:** 2026-09-28
-**Status:** chosen for the P-01 server foundation
+**Recorded:** 2026-09-30
+**Status:** chosen for the partial P-01 server foundation
 
 ## Decision
 
@@ -10,7 +10,8 @@ Upload bytes are first written to
 `<staging-root>/uploads/<tenant-id>/<upload-id>.part`. After the server verifies
 the complete SHA-256 digest, it links the file into
 `<staging-root>/intakes/<tenant-id>/<intake-id>/<relative-path>` and removes the
-temporary name. The client path is relative to that generated intake root; it
+temporary name. A checksum mismatch records `checksum_mismatch` and removes the
+partial file. The client path is relative to that generated intake root; it
 never names a Sonarr root or final library destination.
 
 The upload table belongs to KoeFrame and is installed through its versioned
@@ -29,7 +30,7 @@ clients cannot request ownership or modes. The release must have permission to
 assign the configured file owner/group and directory group. KoeFrame's OS user
 is trusted because it owns the writable staging tree; the media group receives
 read/traverse access only and must not include untrusted writer processes. The
-The storage root cannot be the filesystem root, a symlink, a sticky directory,
+storage root cannot be the filesystem root, a symlink, a sticky directory,
 or an existing directory with group/world write permission. Its ancestor
 directories are also checked; group/world-write is rejected even when a sticky
 bit is set. KoeFrame creates only the final root directory when absent, after
@@ -59,16 +60,22 @@ NAS root and media ownership settings.
 
 ## Consequences
 
-- The latest isolated worktree verification on 2026-09-30 passed formatting,
-  warnings-as-errors compilation, and the complete local suite (37 tests,
-  0 failures), including tenant-scoped upload persistence, path safety, and
-  staging permissions. P-01 remains incomplete until the authenticated
-  HTTP/Tus API and Mac client transfer a directory tree end to end.
-- A final independent review returned `READY_WITH_FOLLOWUPS`. Its isolated
-  checkout passed the 37-test suite, warnings-as-errors compilation, and
-  dependency resolution; it also verified real FFmpeg probing and a 500 ms
-  extraction. An empty-cache network fetch of the pinned Git dependency and
-  production release boot with staging variables remain unverified.
+- At `4ff2f2e` on 2026-09-30, local verification passed formatting,
+  warnings-as-errors compilation in test and production, the full suite (62
+  tests, 0 failures), release assembly, unused-dependency checking, and
+  `git diff --check`. The suite covers tenant-scoped upload persistence, path
+  safety, staging permissions, bounded media extraction, and redacted FFmpeg
+  failures. A synthetic MKV smoke extracted an SRT subtitle and a 500 ms WAV
+  segment.
+- An independent clean-checkout review reproduced the 62-test suite,
+  compilation, release assembly, and migration idempotency on a fresh test
+  database. It found no active code findings (`READY_WITH_FOLLOWUPS`). The
+  review could not download Tailwind from `storage.defdo.de` because the
+  connection closed. Woodpecker pipeline #15 then passed locked dependency
+  resolution, tests, Tailwind setup, `assets.deploy`, and release assembly. The
+  Docker image and production release startup on the NAS remain unverified.
+- P-01 remains incomplete until the authenticated HTTP/Tus API and Mac client
+  transfer a directory tree end to end, including an interrupted large upload.
 - Staging and final library placement are separate. Sonarr remains authoritative
   for the latter.
 - The filesystem adapter requires hard-link support on the configured staging
@@ -83,14 +90,15 @@ NAS root and media ownership settings.
   `s3.defdo.ninja` failed, direct access to the remembered NAS S3 port was
   refused, and no S3 test credentials were present in the process environment.
   No object was written.
-- The Hub task-jobs API is not part of this intake slice. Subtitle translation
-  remains blocked on the Hub contract being implemented and released.
+- The Hub task-jobs API is not part of this intake slice. Do not wire subtitle
+  translation until the Hub task contract is available and verified.
 
 ## Authentication prerequisite
 
-The client stores its scoped bearer credential in macOS Keychain. KoeFrame
-validates it with `Defdo.AuthClient.SDK.introspect_credential/3` and establishes
-the returned tenant at the request edge before invoking `Uploads`. The
-application scope is `koe_frame:media:write`; it must be registered in the
-IdP tenant catalog and granted only to the KoeFrame client. The upload route
-does not ship while the auth package, scope, and credential are unavailable.
+Authentication is not implemented by this slice: there is no upload HTTP
+route, Mac client, or verified credential flow. The planned client stores its
+scoped bearer credential in macOS Keychain; the future route will introspect it
+with `Defdo.AuthClient.SDK.introspect_credential/3` and establish the returned
+tenant at the request edge before invoking `Uploads`. The
+`koe_frame:media:write` scope must be registered and granted to the KoeFrame
+client before that route can ship.

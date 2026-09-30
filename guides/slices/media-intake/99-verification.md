@@ -27,51 +27,28 @@ git diff --check
 
 ## Current evidence
 
-- On 2026-09-29, the current local working tree passed `mix format
-  --check-formatted`, `mix compile --warnings-as-errors`, `mix test` (25 tests,
-  0 failures), and `git diff --check`. The full suite started the local test
-  database and exercised the tenant-scoped upload persistence and staging path.
-- The first full test run exposed a test-only tuple access error in the owner
-  assertion. It was corrected to read the GID from the `{uid, gid}` tuple, and
-  the complete suite then passed.
-- A separate synthetic two-second MKV smoke through KoeFrame's FFmpex adapter
-  found global streams 0/1/2, extracted the SRT subtitle, and produced a
-  0.5-second WAV segment (16,078 bytes, consistent with a mono 16 kHz PCM WAV).
-- An earlier independent review used an isolated copy and found a test-only
-  tuple assertion error. It was fixed, and the final independent review below
-  passed the corrected tree.
-- On 2026-09-30, the isolated integration worktree passed formatting,
-  warnings-as-errors compilation, and `mix test` (37 tests, 0 failures). The
-  focused suite now rejects `/`, `/tmp`, sticky roots, group/world-writable
-  roots or ancestors, rejects existing roots with unsafe mode/group without
-  changing them, and verifies file/directory modes 0640/0750.
-- The 2026-09-30 independent adversarial review found an unbounded seconds API,
-  FFmpeg diagnostic path leakage, and insufficient staging-root checks. A
-  fresh review also caught raw-versus-cast upload-length comparison and
-  unbounded audio profile values; the worktree now compares typed changeset
-  values and accepts only 8–192 kHz and one to eight channels. It uses integer
-  milliseconds capped at 60,000, returns stable errors without diagnostics,
-  creates only a missing final root, and never changes permissions or group on
-  an existing root. The final independent review returned
-  `READY_WITH_FOLLOWUPS`: its isolated checkout passed `MIX_ENV=test mix test`
-  (37/0), `MIX_ENV=test mix compile --warnings-as-errors`, and
-  `mix deps.get --quiet` without changing the lock; it also confirmed a real
-  FFmpeg probe and 500 ms extraction. The checkout used the local dependency
-  cache; an empty-cache network fetch of the pinned Git dependency remains
-  unverified.
-- A fresh temporary schema migration installed Tenant v7 and KoeFrame v1/v2
-  through an Ecto migration runner, confirmed the media upload table existed,
-  and rolled the schema back cleanly. The independent reviewer also exercised
-  the package-level populated-table rollback refusal and confirmed the row was
-  preserved. The repository's exact full bootstrap migration (including Vault)
-  on a new database and the wrapper's populated-table rollback remain
-  unverified.
-- The authenticated API still depends on resolving private `defdo_auth_client`
-  and registering the narrow tenant scope; no upload route or Mac client exists
-  yet. A real HTTP/Tus transfer, interrupted multi-gigabyte directory
-  transfer, production release boot with configured staging variables, and the
-  configured NAS UID/GID have not been verified. P-01 remains incomplete.
-- The Hub task-jobs callback contract for P-03 is independently blocked on
-  task-jobs 01 (#110): its second review found an open P1 and three P2 findings.
-  This does not block P-01; KoeFrame must wait for fixes, a third review, and a
-  merged Hub change before implementing callback delivery.
+- At HEAD `4ff2f2e` on 2026-09-30, the isolated worktree passed
+  `mix format --check-formatted`, test and production compilation with
+  `--warnings-as-errors`, `MIX_ENV=test mix test` (62 tests, 0 failures),
+  production release assembly, `mix deps.unlock --check-unused`, and
+  `git diff --check`. Tests cover tenant-bound uploads, unsafe paths and
+  symlinks, permissions, bounded FFmpeg calls, and redacted failures. A
+  synthetic MKV smoke found global streams and extracted an SRT plus a 500 ms
+  WAV segment.
+- An independent clean-checkout review at the same HEAD reproduced the 62/0
+  suite, compile checks, release assembly, and `Release.migrate/0` on a fresh
+  test database. It confirmed a second migration pass was idempotent and found
+  no active code findings (`READY_WITH_FOLLOWUPS`). The review did not verify a
+  production release boot.
+- Woodpecker pipeline #15 for `4ff2f2e` passed. Its CI job resolved the
+  locked dependencies, ran formatting, compilation and all tests, installed
+  Tailwind, deployed production assets, and assembled the release. The
+  independent reviewer could not download Tailwind from `storage.defdo.de`
+  because its connection closed; the successful CI job verified that build
+  path. The Docker image has not been built yet.
+- P-01 remains incomplete. This slice has no authenticated upload route or Mac
+  client. No real HTTP/Tus transfer, interrupted multi-gigabyte upload,
+  production release startup with staging settings, or configured NAS UID/GID
+  has been verified.
+- The Hub task-jobs API is outside this slice. KoeFrame must verify the Hub
+  contract before implementing subtitle-translation callback delivery.

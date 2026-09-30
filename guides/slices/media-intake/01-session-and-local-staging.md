@@ -104,14 +104,15 @@ uncommitted tail and continue from the committed offset. If the file is
 shorter than the committed offset, return `:staging_data_lost`.
 
 After the full length is committed, hash the file in bounded reads. On a digest
-mismatch persist `checksum_mismatch` and leave the file private. On success,
-call the KoeFrame filesystem adapter through the uploader contract. It links
-without replacing an existing destination, syncs the file and parent
-directories before the status commit, applies mode 0640 to media files, and
-uses mode 0750 for directories owned by KoeFrame with the configured media
-group. This lets the media service read and traverse the tree without granting
-the group write access. The final path is still a review staging path, never a
-Sonarr library path.
+mismatch, persist `checksum_mismatch` and remove the private partial file. If
+cleanup fails, return that cleanup error. On success, call the KoeFrame
+filesystem adapter through the uploader contract. It links without replacing
+an existing destination, syncs the file and parent directories before the
+status commit, applies mode 0640 to media files, and uses mode 0750 for
+directories owned by KoeFrame with the configured media group. This lets the
+media service read and traverse the tree without granting the group write
+access. The final path is still a review staging path, never a Sonarr library
+path.
 
 Production runtime must require `KOE_FRAME_STAGING_ROOT`,
 `KOE_FRAME_MEDIA_UID`, and `KOE_FRAME_MEDIA_GID`. Reject startup on absent or
@@ -152,18 +153,20 @@ git diff --check
 - [x] A final file is staged only if its complete SHA-256 matches.
 - [x] Final publication uses `Defdo.Uploader.Adapter`; resumable sessions and
   the NAS filesystem adapter stay application-owned.
-- [x] Current local evidence: on 2026-09-30, `mix format --check-formatted`,
-  `mix compile --warnings-as-errors`, and the complete `mix test` suite (31
-  tests, 0 failures) passed in the isolated integration worktree. The suite
-  includes database-backed tenant uploads, root permission checks, media
+- [x] Current local evidence at `4ff2f2e`: formatting, test and production
+  warnings-as-errors compilation, `mix test` (62 tests, 0 failures), release
+  assembly, unused-dependency check, and `git diff --check` passed. The suite
+  covers tenant-bound staging, unsafe paths and symlinks, permissions, media
   extraction command bounds, and redacted FFmpeg failures. A synthetic MKV
   smoke probes global stream indexes and extracts an SRT subtitle plus a
   0.5-second WAV segment.
-- [x] An empty temporary schema installed Tenant v7 and KoeFrame v1/v2 through
-  an Ecto migration runner; the upload table was present after `up` and absent
-  after `down`. The temporary schema was dropped.
-- [ ] Remaining gate: clean-clone full tests and dependency fetch, exact full
-  app-bootstrap migration on a fresh database, refusal to roll back with upload
-  rows, authenticated HTTP/Tus, Mac folder client, real interrupted
-  multi-gigabyte transfer, and NAS-configured UID/GID validation. The local tree
-  is still uncommitted and P-01 is not complete.
+- [x] An independent clean-checkout review at `4ff2f2e` reproduced the 62/0
+  suite, compile checks, release assembly, and migration idempotency against a
+  fresh test database. It found no active code findings.
+- [x] Woodpecker pipeline #15 for `4ff2f2e` passed on 2026-09-30, including
+  locked dependency resolution, tests, production assets setup/deploy, and
+  release assembly.
+- [ ] Remaining gate: run migrations through the actual release startup path,
+  build the Docker image, configure and validate NAS UID/GID, and exercise the
+  authenticated HTTP/Tus API, Mac folder client, and an interrupted
+  multi-gigabyte transfer. P-01 remains incomplete.
