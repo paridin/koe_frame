@@ -1,5 +1,8 @@
 import Config
 
+config :koe_frame,
+  media_staging_root: Path.join(File.cwd!(), ".koe_frame-test-staging")
+
 config :defdo_tenant, enforcement: :test_enforce
 
 config :defdo_order,

@@ -76,6 +76,7 @@ defmodule Defdo.KoeFrame.MixProject do
       {:defdo_order, "~> 0.7", organization: "defdo"},
       {:defdo_tenant, "~> 0.16", organization: "defdo"},
       {:defdo_vault, "~> 0.16", organization: "defdo"},
+      {:defdo_uploader, "~> 0.3", organization: "defdo"},
       {:ffmpex, "~> 0.11.1"},
       {:bandit, "~> 1.5"}
     ]

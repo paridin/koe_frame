@@ -1,5 +1,8 @@
 import Config
 
+config :koe_frame,
+  media_staging_root: Path.join(File.cwd!(), ".koe_frame-dev-staging")
+
 # Configure your database
 config :koe_frame, Defdo.KoeFrame.Repo,
   username: "postgres",
