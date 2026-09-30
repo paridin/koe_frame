@@ -191,6 +191,52 @@ defmodule Defdo.KoeFrame.MediaIntake.FilesystemAdapterTest do
     refute File.dir?(Path.join(root, tenant_id))
   end
 
+  test "recovery rejects a symlinked destination parent without changing the external file" do
+    root =
+      Path.join(
+        System.user_home!(),
+        ".koe-frame-recovery-root-#{System.unique_integer([:positive])}"
+      )
+
+    external = root <> "-external"
+    source = root <> "-missing.mkv"
+    tenant_id = Ecto.UUID.generate()
+    intake_id = Ecto.UUID.generate()
+    tenant_directory = Path.join(root, tenant_id)
+    intake_directory = Path.join(tenant_directory, intake_id)
+    object_key = Path.join([tenant_id, intake_id, "episode.mkv"])
+
+    File.mkdir_p!(root)
+    File.chmod!(root, 0o750)
+    File.mkdir_p!(tenant_directory)
+    File.mkdir_p!(external)
+    external_file = Path.join(external, "episode.mkv")
+    File.write!(external_file, "outside media")
+    File.chmod!(external_file, 0o600)
+    File.ln_s!(external, intake_directory)
+
+    on_exit(fn ->
+      File.rm_rf!(root)
+      File.rm_rf!(external)
+    end)
+
+    digest =
+      :crypto.hash(:sha256, "outside media")
+      |> Base.encode16(case: :lower)
+
+    assert {:error, :unsafe_staged_directory} =
+             FilesystemAdapter.upload(
+               source,
+               object_key,
+               %{root: root, owner: nil, file_mode: 0o640, directory_mode: 0o750},
+               expected_sha256: digest
+             )
+
+    assert File.read!(external_file) == "outside media"
+    assert {:ok, %{mode: mode}} = File.stat(external_file)
+    assert band(mode, 0o777) == 0o600
+  end
+
   test "publishing rejects a storage root beneath a group-writable parent" do
     parent =
       Path.join(
