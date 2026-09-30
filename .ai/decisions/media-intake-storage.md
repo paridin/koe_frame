@@ -71,9 +71,10 @@ NAS root and media ownership settings.
   compilation, release assembly, and migration idempotency on a fresh test
   database. It found no active code findings (`READY_WITH_FOLLOWUPS`). The
   review could not download Tailwind from `storage.defdo.de` because the
-  connection closed. Woodpecker pipeline #15 then passed locked dependency
-  resolution, tests, Tailwind setup, `assets.deploy`, and release assembly. The
-  Docker image and production release startup on the NAS remain unverified.
+  connection closed. [Woodpecker pipeline #15](https://woodpecker.defdo.ninja/repos/79/pipeline/15/1)
+  then passed locked dependency resolution, tests, Tailwind setup,
+  `assets.deploy`, and release assembly. The Docker image and production release
+  startup on the NAS remain unverified.
 - P-01 remains incomplete until the authenticated HTTP/Tus API and Mac client
   transfer a directory tree end to end, including an interrupted large upload.
 - Staging and final library placement are separate. Sonarr remains authoritative

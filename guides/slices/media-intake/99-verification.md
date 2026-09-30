@@ -40,7 +40,8 @@ git diff --check
   test database. It confirmed a second migration pass was idempotent and found
   no active code findings (`READY_WITH_FOLLOWUPS`). The review did not verify a
   production release boot.
-- Woodpecker pipeline #15 for `4ff2f2e` passed. Its CI job resolved the
+- [Woodpecker pipeline #15](https://woodpecker.defdo.ninja/repos/79/pipeline/15/1)
+  for `4ff2f2e` passed. Its CI job resolved the
   locked dependencies, ran formatting, compilation and all tests, installed
   Tailwind, deployed production assets, and assembled the release. The
   independent reviewer could not download Tailwind from `storage.defdo.de`

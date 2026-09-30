@@ -163,7 +163,8 @@ git diff --check
 - [x] An independent clean-checkout review at `4ff2f2e` reproduced the 62/0
   suite, compile checks, release assembly, and migration idempotency against a
   fresh test database. It found no active code findings.
-- [x] Woodpecker pipeline #15 for `4ff2f2e` passed on 2026-09-30, including
+- [x] [Woodpecker pipeline #15](https://woodpecker.defdo.ninja/repos/79/pipeline/15/1)
+  for `4ff2f2e` passed on 2026-09-30, including
   locked dependency resolution, tests, production assets setup/deploy, and
   release assembly.
 - [ ] Remaining gate: run migrations through the actual release startup path,
