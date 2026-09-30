@@ -283,13 +283,19 @@ First inspect that file's own stream indexes through release RPC:
 bin/koe_frame rpc 'case Defdo.KoeFrame.TranscriptReview.stream_inventory(System.fetch_env!("KOEFRAME_VIDEO")) do {:ok, inventory} -> IO.puts(Jason.encode!(inventory)); {:error, reason} -> IO.puts(:stderr, inspect(reason)) end'
 ```
 
-Set `KOEFRAME_VIDEO`, `KOEFRAME_AUDIO_INDEX`, and
-`KOEFRAME_SUBTITLE_INDEX` in the running release container. Select indexes from
-the just-produced inventory, then run the preview through RPC:
+Inject `KOEFRAME_VIDEO` into the release container environment before starting
+or restarting the release. The RPC expression runs inside the already-running
+BEAM; exporting a variable in a later `exec` shell does not change the BEAM's
+environment. Select the audio and subtitle global indexes from the inventory
+output, substitute those numbers as integer literals in the preview expression,
+then run it through RPC:
 
 ```sh
-bin/koe_frame rpc 'case Defdo.KoeFrame.TranscriptReview.preview(%{path: System.fetch_env!("KOEFRAME_VIDEO"), audio_stream: String.to_integer(System.fetch_env!("KOEFRAME_AUDIO_INDEX")), subtitle_stream: String.to_integer(System.fetch_env!("KOEFRAME_SUBTITLE_INDEX")), source_language: "ja", start_ms: 0, duration_ms: 30000}) do {:ok, report} -> IO.puts(Jason.encode!(report)); {:error, reason} -> IO.puts(:stderr, inspect(reason)) end'
+bin/koe_frame rpc 'case Defdo.KoeFrame.TranscriptReview.preview(%{path: System.fetch_env!("KOEFRAME_VIDEO"), audio_stream: 1, subtitle_stream: 3, source_language: "ja", start_ms: 0, duration_ms: 30000}) do {:ok, report} -> IO.puts(Jason.encode!(report)); {:error, reason} -> IO.puts(:stderr, inspect(reason)) end'
 ```
+
+Replace `1` and `3` with the selected global stream indexes from the inventory;
+these example values are not defaults.
 
 Using the default `deepdml/faster-whisper-large-v3-turbo-ct2` model, the binary
 manual gate is: for each known Spanish cue range (5,910–9,480 ms and
