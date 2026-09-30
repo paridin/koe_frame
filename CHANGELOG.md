@@ -13,8 +13,8 @@
 
 ### Changed
 
-- Run KoeFrame's versioned database migrations before the release starts.
-- Align dependency requirements with the versions resolved and verified by CI.
+- Run KoeFrame's versioned database migrations before the Docker container starts.
+- Align dependency requirement ranges with the versions recorded in the lockfile.
 
 ### Fixed
 

@@ -38,7 +38,7 @@ line numbers move, anchors do not.
 
 - `lib/koe_frame/media_analysis.ex` — 212 lines, first definition at :1 — defmodule Defdo.KoeFrame.MediaAnalysis do
 - `lib/koe_frame/media_analysis/ffmpex_adapter.ex` — 233 lines, first definition at :1 — defmodule Defdo.KoeFrame.MediaAnalysis.FfmpexAdapter do
-- `.ai/capabilities.md` — 49 lines, `# KoeFrame capabilities`
+- `.ai/capabilities.md` — 77 lines, `# KoeFrame capabilities`
 - `test/koe_frame/media_analysis/ffmpex_adapter_test.exs` — 174 lines, subtitle command test at :88
 - `lib/koe_frame/transcript_review.ex` — NEW
 - `lib/koe_frame/transcript_review/adapter.ex` — NEW
