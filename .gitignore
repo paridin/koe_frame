@@ -21,11 +21,15 @@ erl_crash.dump
 
 # Temporary files, for example, from tests.
 /tmp/
+/.koe_frame-dev-staging/
+/.koe_frame-test-staging/
+/.koe-frame-*
 
 # Ignore package tarball (built via "mix hex.build").
 koe_frame-*.tar
 
 # Ignore assets that are produced by build tools.
+/priv/bin/
 /priv/static/assets/
 
 # Ignore digested assets cache.

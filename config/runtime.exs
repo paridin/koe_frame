@@ -1,6 +1,7 @@
 import Config
 
 config :defdo_vault, config_env: config_env()
+config :koe_frame, :runtime_env, config_env()
 
 # config/runtime.exs is executed for all environments, including
 # during releases. It is executed after compilation and before the
@@ -18,12 +19,17 @@ config :defdo_vault, config_env: config_env()
 #
 # Alternatively, you can use `mix phx.gen.release` to generate a `bin/server`
 # script that automatically sets the env var above.
-if System.get_env("PHX_SERVER") do
+if System.get_env("PHX_SERVER") in ~w(true 1) do
   config :koe_frame, Defdo.KoeFrameWeb.Endpoint, server: true
 end
 
 config :koe_frame, Defdo.KoeFrameWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
+
+config :koe_frame,
+  subtitler_cue_base_url: System.get_env("SUBTITLER_CUE_BASE_URL"),
+  subtitler_cue_token_ref: System.get_env("SUBTITLER_CUE_TOKEN_REF"),
+  subtitler_cue_timeout_ms: String.to_integer(System.get_env("SUBTITLER_CUE_TIMEOUT_MS", "30000"))
 
 if config_env() == :dev do
   # Reload browser tabs when matching files change.
@@ -43,6 +49,22 @@ if config_env() == :dev do
 end
 
 if config_env() == :prod do
+  media_staging_root =
+    System.get_env("KOE_FRAME_STAGING_ROOT") ||
+      raise "environment variable KOE_FRAME_STAGING_ROOT is missing"
+
+  media_owner_uid =
+    System.get_env("KOE_FRAME_MEDIA_UID") ||
+      raise "environment variable KOE_FRAME_MEDIA_UID is missing"
+
+  media_owner_gid =
+    System.get_env("KOE_FRAME_MEDIA_GID") ||
+      raise "environment variable KOE_FRAME_MEDIA_GID is missing"
+
+  config :koe_frame,
+    media_staging_root: Path.expand(media_staging_root),
+    media_staging_owner: {String.to_integer(media_owner_uid), String.to_integer(media_owner_gid)}
+
   database_url =
     System.get_env("DATABASE_URL") ||
       raise """

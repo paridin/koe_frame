@@ -1,0 +1,8 @@
+.git
+.hub-worktrees
+_build
+deps
+.ai
+cover
+tmp
+priv/bin

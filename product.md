@@ -1,10 +1,14 @@
 ---
 kind: product
 topic: koe-frame
-approved: 2026-09-27 by owner in conversation
+approved: P-01–P-05 on 2026-09-27; P-06 on 2026-09-29 by owner in conversation
 ---
 
 # KoeFrame — product
+
+**Owner approval for P-06:** 2026-09-29. After the proposal for a short
+Aoyama preview that compares Japanese speech recognition with the selected
+Spanish subtitle through Speaches and Subtitler, the owner said “hagámoslo”.
 
 ## Who and why
 
@@ -92,6 +96,22 @@ the direction changes.
 Done when: generated audio is a new reviewable track; the source video/audio is
 never overwritten.
 
+### P-06 — Compare spoken words with an existing subtitle
+
+1. Select a local media file and choose audio and subtitle streams by their
+   FFprobe global indexes.
+2. Request a 1–60 second transcript preview in an explicit source language.
+3. KoeFrame extracts the audio segment for its private Speaches service,
+   converts the selected text subtitle stream to SRT, and asks Subtitler's
+   private cue API for normalized cue IDs and time ranges.
+4. Review word-level source-media timestamps alongside overlapping subtitle
+   cues, including unmatched words and cues, before choosing corrections for a
+   later translation workflow.
+
+Done when: the Aoyama 30-second sample can align recognized words with the
+selected Spanish cues, while source media stays unchanged and temporary
+extractions are removed.
+
 ## Product boundaries
 
 - The Mac client reads local directories and handles transfer. The server owns
@@ -116,10 +136,11 @@ never overwritten.
   `Defdo.Order.resume(order_id, step_id, result)` after restoring tenant
   context at the callback edge. The step declares `pause_mode` and
   `input_config`; KoeFrame does not hold a worker polling the Hub.
-- Subtitler is a generic internal module with a stable translation contract.
-  It knows subtitle cue structure and translation options, not anime catalog
-  entities, Sonarr, NAS paths, or series lore. The media app may later extract
-  that module into a separately sellable package without changing its API.
+- Subtitler is a generic internal service with stable translation and cue
+  contracts. It owns cue IDs, cue timing and text normalization, and
+  translation options, not anime catalog entities, Sonarr, NAS paths, or series
+  lore. The media app may later extract that module into a separately sellable
+  package without changing its API.
 - Voice conversion, dub generation, YouTube recaps, LMS courses, and lesson
   authoring are later phases. They must not block the initial intake and
   subtitle workflow.
@@ -199,7 +220,14 @@ Before KoeFrame relies on callback-driven resume in production:
 3. Until that test exists and passes, treat resume-from-callback as unproven
    in KoeFrame, and do not gate a release on it.
 
-### What the Hub guarantees vs. what KoeFrame owns
+### Target contract: Hub guarantees vs. what KoeFrame owns
+
+This table is the target product contract, not a readiness claim. Hub
+task-jobs 01 (#110) is not ready for KoeFrame integration: its second review
+found a P1 secret-isolation flaw and P2 issues with secret-code collisions,
+signature expiry and per-consumer timeouts, and IPv6 callback URLs. Keep P-03
+callback work behind those fixes, a third review, and a merged Hub change.
+This gate does not block P-01 media intake.
 
 | | Owner |
 |---|---|
@@ -259,7 +287,9 @@ the client never asks the NAS to preserve macOS ownership.
 ## Ecosystem
 
 - app: KoeFrame (`koe_frame` repository) — resumable authenticated NAS intake
-  and Mac client are product gaps to implement here.
+  and Mac client are product gaps to implement here; tenant-scoped upload
+  sessions and local staging are now implemented, while the HTTP boundary and
+  client remain pending.
 - uses: defdo_memory_hub — durable contexts and ACP research/agent tasks;
   KoeFrame and Subtitler use the same authenticated task API and signed
   callback contract for bounded subtitle batches. Each app has its own scoped
@@ -272,16 +302,33 @@ the client never asks the NAS to preserve macOS ownership.
   it until that surface is complete and its host integration is verified.
 - uses: defdo_vault — encrypted integration credentials; secret key material
   is injected per environment and is not committed with the app.
+- uses: defdo_uploader@0.3.0 — shared adapter contract for verified file
+  publication; KoeFrame implements the NAS filesystem adapter and retains its
+  own resumable sessions, chunk offsets, directory layout, and permissions.
 - uses: paridin/subtitler — independent subtitle service. KoeFrame integrates
   over its HTTP boundary where useful; it does not embed Subtitler's Phoenix
   runtime, share its database, or depend on its private Git repository at
   compile time. Both apps will call the Hub's shared task API directly for ACP
   translation batches.
+- partial: KoeFrame's generic cue client now posts SRT text with a Vault-backed
+  bearer credential and validates Subtitler's cue response. Production use
+  still requires the matching service credential and an encrypted endpoint;
+  see `guides/slices/media-analysis/02-subtitler-cue-client.md`.
 - uses: Sonarr API — authoritative series and root-path catalog for import
   decisions.
 - uses: Jellyfin — playback target for final media and subtitle tracks.
-- gap: directory permissions/finalization — implement in the NAS-side intake
-  finalizer, never in the Mac client.
+- gap: authenticated upload API — use `defdo_auth_client` credential
+  introspection and a tenant-registered `koe_frame:media:write` scope before
+  exposing upload routes; the private package is not currently resolved in
+  KoeFrame's dependency lock.
+- partial: resumable filesystem transfer — session/chunk/finalize foundation
+  exists and the final write uses KoeFrame's `defdo_uploader` adapter;
+  authenticated HTTP and the Mac client remain pending. See
+  `.ai/decisions/media-intake-storage.md`.
+- partial: local staging applies 0640 media-file and 0750 directory modes after
+  checksum verification. KoeFrame owns writable directories and the configured
+  media group gets read/traverse access; Sonarr-selected final library placement
+  remains future work.
 
 ## Research sources
 

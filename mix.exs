@@ -4,7 +4,7 @@ defmodule Defdo.KoeFrame.MixProject do
   def project do
     [
       app: :koe_frame,
-      version: "0.1.0",
+      version: File.read!(Path.join(__DIR__, "VERSION")) |> String.trim(),
       elixir: "~> 1.19",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
@@ -73,9 +73,12 @@ defmodule Defdo.KoeFrame.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
       {:defdo_migrator, "~> 0.4", organization: "defdo"},
+      {:defdo_tasks, "~> 0.7", organization: "defdo"},
       {:defdo_order, "~> 0.7", organization: "defdo"},
       {:defdo_tenant, "~> 0.16", organization: "defdo"},
       {:defdo_vault, "~> 0.16", organization: "defdo"},
+      {:defdo_uploader, "~> 0.3", organization: "defdo"},
+      {:ffmpex, "~> 0.11.1"},
       {:bandit, "~> 1.5"}
     ]
   end
@@ -88,7 +91,7 @@ defmodule Defdo.KoeFrame.MixProject do
   # See the documentation for `Mix` for more info on aliases.
   defp aliases do
     [
-      setup: ["deps.get", "ecto.setup", "assets.setup", "assets.build"],
+      setup: ["deps.get", "ecto.setup", "assets.setup", "assets.build", "compile.rambo"],
       "ecto.koe_frame_schema":
         "defdo.repo.pg.ensure_schema --repo Defdo.KoeFrame.Repo --schema defdo_koe_frame",
       "ecto.setup": [
@@ -98,10 +101,21 @@ defmodule Defdo.KoeFrame.MixProject do
         "run priv/repo/seeds.exs"
       ],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
-      test: ["ecto.create --quiet", "ecto.koe_frame_schema", "ecto.migrate --quiet", "test"],
-      "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
+      release: ["compile.rambo", "release"],
+      test: [
+        "ecto.create --quiet",
+        "ecto.koe_frame_schema",
+        "ecto.migrate --quiet",
+        "compile.rambo",
+        "test"
+      ],
+      "assets.setup": [
+        "tailwind.install 'https://storage.defdo.de/tailwind_cli_daisyui/v$version/tailwindcss-$target'",
+        "esbuild.install --if-missing"
+      ],
       "assets.build": ["compile", "tailwind koe_frame", "esbuild koe_frame"],
       "assets.deploy": [
+        "compile",
         "tailwind koe_frame --minify",
         "esbuild koe_frame --minify",
         "phx.digest"

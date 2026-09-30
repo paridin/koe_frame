@@ -1,5 +1,8 @@
 import Config
 
+config :koe_frame,
+  media_staging_root: Path.join(System.user_home!(), ".koe_frame-test-staging")
+
 config :defdo_tenant, enforcement: :test_enforce
 
 config :defdo_order,
@@ -15,7 +18,7 @@ config :defdo_order,
 config :koe_frame, Defdo.KoeFrame.Repo,
   username: "postgres",
   password: "postgres",
-  hostname: "localhost",
+  hostname: System.get_env("PGHOST", "localhost"),
   database: "koe_frame_test#{System.get_env("MIX_TEST_PARTITION")}",
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: System.schedulers_online() * 2

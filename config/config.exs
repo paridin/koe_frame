@@ -85,6 +85,7 @@ config :esbuild,
 # Configure tailwind (the version is required)
 config :tailwind,
   version: "4.3.3",
+  path: Path.expand("../priv/bin/tailwindcss", __DIR__),
   koe_frame: [
     args: ~w(
       --input=assets/css/app.css
