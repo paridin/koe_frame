@@ -13,7 +13,7 @@ defmodule Defdo.KoeFrame.MediaIntake.UploadsTest do
 
     root_parent =
       Path.join(
-        File.cwd!(),
+        System.user_home!(),
         ".koe-frame-upload-test-#{System.unique_integer([:positive])}"
       )
 

@@ -13,7 +13,7 @@ defmodule Defdo.KoeFrame.MediaIntake.FilesystemAdapterTest do
   test "accepts a dedicated directory with safe permissions" do
     root =
       Path.join(
-        File.cwd!(),
+        System.user_home!(),
         ".koe-frame-safe-root-#{System.unique_integer([:positive])}"
       )
 
@@ -27,7 +27,7 @@ defmodule Defdo.KoeFrame.MediaIntake.FilesystemAdapterTest do
   test "rejects an existing staging root with group/world write or sticky permissions" do
     root =
       Path.join(
-        File.cwd!(),
+        System.user_home!(),
         ".koe-frame-unsafe-root-#{System.unique_integer([:positive])}"
       )
 
@@ -48,7 +48,7 @@ defmodule Defdo.KoeFrame.MediaIntake.FilesystemAdapterTest do
   test "rejects a symlink as the configured staging root" do
     target =
       Path.join(
-        File.cwd!(),
+        System.user_home!(),
         ".koe-frame-root-target-#{System.unique_integer([:positive])}"
       )
 
@@ -68,7 +68,7 @@ defmodule Defdo.KoeFrame.MediaIntake.FilesystemAdapterTest do
   test "does not chmod an existing root that was not provisioned for staging" do
     root =
       Path.join(
-        File.cwd!(),
+        System.user_home!(),
         ".koe-frame-unprepared-root-#{System.unique_integer([:positive])}"
       )
 
@@ -102,7 +102,7 @@ defmodule Defdo.KoeFrame.MediaIntake.FilesystemAdapterTest do
   test "publishing rejects a symlinked parent instead of escaping the media root" do
     root =
       Path.join(
-        File.cwd!(),
+        System.user_home!(),
         ".koe-frame-media-root-#{System.unique_integer([:positive])}"
       )
 
@@ -138,7 +138,7 @@ defmodule Defdo.KoeFrame.MediaIntake.FilesystemAdapterTest do
   test "publishing rejects a storage root beneath a group-writable parent" do
     parent =
       Path.join(
-        File.cwd!(),
+        System.user_home!(),
         "koe-frame-unsafe-parent-#{System.unique_integer([:positive])}"
       )
 
