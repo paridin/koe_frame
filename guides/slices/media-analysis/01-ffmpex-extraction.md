@@ -65,8 +65,8 @@ this documentation set and must be updated by the implementation.
    - reject negative/non-integer stream indexes;
    - accept start offsets and durations only as non-negative/positive integer
      milliseconds; reject audio segments longer than 60,000 ms;
-   - default audio extraction to 16,000 Hz mono and validate positive integer
-     sample-rate/channel values;
+   - default audio extraction to 16,000 Hz mono; accept sample rates from
+     8,000 through 192,000 Hz and one through eight channels;
    - require an absolute output path, an existing parent directory, and a
      nonexistent output file;
    - route through application config `:media_analysis_adapter`, defaulting

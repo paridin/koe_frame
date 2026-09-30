@@ -10,15 +10,16 @@ later localization step can work with text and timings.
 1. `01-ffmpex-extraction.md` — KoeFrame-owned FFprobe inventory and bounded
    extraction through Ffmpex. It does not call the Hub or modify the source
    media.
-2. Later slice: normalize extracted subtitle cues against the generic
-   Subtitler cue contract.
+2. `02-subtitler-cue-client.md` — send bounded SRT text to Subtitler's
+   authenticated generic cue endpoint and validate the returned cue contract.
 3. Later slice: run the Aoyama ASR/reference comparison and produce a reviewed
    first Spanish draft.
 4. Later slice: compare translation candidates through the Hub only after
    task-jobs 01 is corrected, third-reviewed, and merged.
 
-The current runner should receive only slice 01. The later items are ordered
-follow-ups, not hidden acceptance criteria for it.
+Slices 01 and 02 are implemented locally on the media-pilot branch. The
+remaining items are ordered follow-ups, not hidden acceptance criteria for
+those slices.
 
 ## Product and architecture
 

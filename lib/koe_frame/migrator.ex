@@ -9,5 +9,5 @@ defmodule Defdo.KoeFrame.Migrator do
   use Defdo.Migrator,
     control_table: "koe_frame",
     prefix: Defdo.KoeFrame.RepoConfig.schema(),
-    current_version: 1
+    current_version: 2
 end

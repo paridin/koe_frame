@@ -220,7 +220,14 @@ Before KoeFrame relies on callback-driven resume in production:
 3. Until that test exists and passes, treat resume-from-callback as unproven
    in KoeFrame, and do not gate a release on it.
 
-### What the Hub guarantees vs. what KoeFrame owns
+### Target contract: Hub guarantees vs. what KoeFrame owns
+
+This table is the target product contract, not a readiness claim. Hub
+task-jobs 01 (#110) is not ready for KoeFrame integration: its second review
+found a P1 secret-isolation flaw and P2 issues with secret-code collisions,
+signature expiry and per-consumer timeouts, and IPv6 callback URLs. Keep P-03
+callback work behind those fixes, a third review, and a merged Hub change.
+This gate does not block P-01 media intake.
 
 | | Owner |
 |---|---|
@@ -280,7 +287,9 @@ the client never asks the NAS to preserve macOS ownership.
 ## Ecosystem
 
 - app: KoeFrame (`koe_frame` repository) — resumable authenticated NAS intake
-  and Mac client are product gaps to implement here.
+  and Mac client are product gaps to implement here; tenant-scoped upload
+  sessions and local staging are now implemented, while the HTTP boundary and
+  client remain pending.
 - uses: defdo_memory_hub — durable contexts and ACP research/agent tasks;
   KoeFrame and Subtitler use the same authenticated task API and signed
   callback contract for bounded subtitle batches. Each app has its own scoped
@@ -293,16 +302,33 @@ the client never asks the NAS to preserve macOS ownership.
   it until that surface is complete and its host integration is verified.
 - uses: defdo_vault — encrypted integration credentials; secret key material
   is injected per environment and is not committed with the app.
+- uses: defdo_uploader@0.3.0 — shared adapter contract for verified file
+  publication; KoeFrame implements the NAS filesystem adapter and retains its
+  own resumable sessions, chunk offsets, directory layout, and permissions.
 - uses: paridin/subtitler — independent subtitle service. KoeFrame integrates
   over its HTTP boundary where useful; it does not embed Subtitler's Phoenix
   runtime, share its database, or depend on its private Git repository at
   compile time. Both apps will call the Hub's shared task API directly for ACP
   translation batches.
+- partial: KoeFrame's generic cue client now posts SRT text with a Vault-backed
+  bearer credential and validates Subtitler's cue response. Production use
+  still requires the matching service credential and an encrypted endpoint;
+  see `guides/slices/media-analysis/02-subtitler-cue-client.md`.
 - uses: Sonarr API — authoritative series and root-path catalog for import
   decisions.
 - uses: Jellyfin — playback target for final media and subtitle tracks.
-- gap: directory permissions/finalization — implement in the NAS-side intake
-  finalizer, never in the Mac client.
+- gap: authenticated upload API — use `defdo_auth_client` credential
+  introspection and a tenant-registered `koe_frame:media:write` scope before
+  exposing upload routes; the private package is not currently resolved in
+  KoeFrame's dependency lock.
+- partial: resumable filesystem transfer — session/chunk/finalize foundation
+  exists and the final write uses KoeFrame's `defdo_uploader` adapter;
+  authenticated HTTP and the Mac client remain pending. See
+  `.ai/decisions/media-intake-storage.md`.
+- partial: local staging applies 0640 media-file and 0750 directory modes after
+  checksum verification. KoeFrame owns writable directories and the configured
+  media group gets read/traverse access; Sonarr-selected final library placement
+  remains future work.
 
 ## Research sources
 
