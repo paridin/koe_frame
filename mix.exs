@@ -73,6 +73,7 @@ defmodule Defdo.KoeFrame.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
       {:defdo_migrator, "~> 0.4", organization: "defdo"},
+      {:defdo_tasks, "~> 0.7", organization: "defdo"},
       {:defdo_order, "~> 0.7", organization: "defdo"},
       {:defdo_tenant, "~> 0.16", organization: "defdo"},
       {:defdo_vault, "~> 0.16", organization: "defdo"},

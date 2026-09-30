@@ -59,5 +59,4 @@ ENV PORT=4000
 
 EXPOSE 4000
 USER 568:568
-ENTRYPOINT ["/app/bin/koe_frame"]
-CMD ["start"]
+CMD ["sh", "-c", "/app/bin/koe_frame eval 'Defdo.KoeFrame.Release.migrate()' && exec /app/bin/koe_frame start"]
