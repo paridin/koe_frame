@@ -16,6 +16,8 @@ config :defdo_order,
   start_action_mirror?: false,
   start_telemetry_handler?: false
 
+config :koe_frame, start_oban?: false
+
 # Configure your database
 #
 # The MIX_TEST_PARTITION environment variable can be used

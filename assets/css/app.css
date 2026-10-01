@@ -6,6 +6,8 @@
 @source "../css";
 @source "../js";
 @source "../../lib/koe_frame_web";
+@source "../../deps/defdo_tenant_provision_web/lib/defdo/tenant/provision_web";
+@source "../../deps/defdo_theme_components/lib/defdo_theme_components";
 /* Required for Tailwind to automatically pick up changes in colocated CSS files in dev */
 @source "../../_build/dev/phoenix-colocated/koe_frame/*/";
 

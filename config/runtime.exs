@@ -43,6 +43,33 @@ config :koe_frame,
     System.get_env("KOE_FRAME_SPEACHES_MODEL", "deepdml/faster-whisper-large-v3-turbo-ct2"),
   speaches_timeout_ms: System.get_env("KOE_FRAME_SPEACHES_TIMEOUT_MS", "180000")
 
+config :koe_frame,
+  setup_token: System.get_env("SETUP_TOKEN"),
+  auth_site: System.get_env("DEFDO_AUTH_SITE"),
+  auth_bootstrap_token: System.get_env("DEFDO_AUTH_BOOTSTRAP_TOKEN"),
+  auth_environment: System.get_env("KOE_FRAME_AUTH_ENVIRONMENT", Atom.to_string(config_env())),
+  auth_callback_redirect_host: System.get_env("KOE_FRAME_AUTH_CALLBACK_REDIRECT_HOST"),
+  start_oban?: System.get_env("KOE_FRAME_START_OBAN", "false") in ["true", "1"],
+  tenant_region: System.get_env("KOE_FRAME_TENANT_REGION", "mx"),
+  tenant_environment: System.get_env("KOE_FRAME_TENANT_ENVIRONMENT", "development"),
+  environment: config_env()
+
+if config_env() == :dev and System.get_env("KOE_FRAME_DEV_TLS") in ["true", "1"] do
+  port = String.to_integer(System.get_env("PORT", "4000"))
+  certfile = System.fetch_env!("KOE_FRAME_DEV_TLS_CERT")
+  keyfile = System.fetch_env!("KOE_FRAME_DEV_TLS_KEY")
+
+  config :koe_frame, Defdo.KoeFrameWeb.Endpoint,
+    url: [scheme: "https", host: "localhost", port: port],
+    http: false,
+    https: [
+      ip: {127, 0, 0, 1},
+      port: port,
+      certfile: certfile,
+      keyfile: keyfile
+    ]
+end
+
 if config_env() == :dev do
   # Reload browser tabs when matching files change.
   config :koe_frame, Defdo.KoeFrameWeb.Endpoint,

@@ -18,7 +18,7 @@ config :koe_frame, Defdo.KoeFrame.Repo,
   username: "postgres",
   password: "postgres",
   hostname: "localhost",
-  database: "koe_frame_dev",
+  database: System.get_env("PGDATABASE", "koe_frame_dev"),
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10

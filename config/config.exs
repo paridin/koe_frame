@@ -22,7 +22,12 @@ config :defdo_order,
   repo: Defdo.KoeFrame.Repo,
   migration_module: Defdo.Order.Migrations,
   ecto_repos: [Defdo.KoeFrame.Repo],
-  start_repo?: false
+  start_repo?: false,
+  start_oban?: false,
+  start_action_mirror?: false,
+  start_telemetry_handler?: false
+
+config :koe_frame, start_oban?: false
 
 config :defdo_order, Oban,
   notifier: Oban.Notifiers.Postgres,
@@ -46,6 +51,8 @@ config :defdo_vault,
   manage_tenant_tables: false,
   start_repo: false,
   start_pubsub: false
+
+config :defdo_auth_client, :cache_adapter, Defdo.AuthClient.Cache.Cachex
 
 # Configure the endpoint
 config :koe_frame, Defdo.KoeFrameWeb.Endpoint,
