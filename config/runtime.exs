@@ -26,9 +26,15 @@ end
 config :koe_frame, Defdo.KoeFrameWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
+subtitler_cue_token_ref =
+  System.get_env("SUBTITLER_CUE_TOKEN_REF") ||
+    if config_env() == :prod do
+      "vault://secret/subtitler/koe_frame_cue_api_token?otp_app=koe_frame&env=prod"
+    end
+
 config :koe_frame,
   subtitler_cue_base_url: System.get_env("SUBTITLER_CUE_BASE_URL"),
-  subtitler_cue_token_ref: System.get_env("SUBTITLER_CUE_TOKEN_REF"),
+  subtitler_cue_token_ref: subtitler_cue_token_ref,
   subtitler_cue_timeout_ms:
     String.to_integer(System.get_env("SUBTITLER_CUE_TIMEOUT_MS", "30000")),
   transcript_review_tenant_id: System.get_env("KOE_FRAME_TENANT_ID"),
