@@ -43,6 +43,22 @@ if config_env() == :dev do
 end
 
 if config_env() == :prod do
+  media_staging_root =
+    System.get_env("KOE_FRAME_STAGING_ROOT") ||
+      raise "environment variable KOE_FRAME_STAGING_ROOT is missing"
+
+  media_owner_uid =
+    System.get_env("KOE_FRAME_MEDIA_UID") ||
+      raise "environment variable KOE_FRAME_MEDIA_UID is missing"
+
+  media_owner_gid =
+    System.get_env("KOE_FRAME_MEDIA_GID") ||
+      raise "environment variable KOE_FRAME_MEDIA_GID is missing"
+
+  config :koe_frame,
+    media_staging_root: Path.expand(media_staging_root),
+    media_staging_owner: {String.to_integer(media_owner_uid), String.to_integer(media_owner_gid)}
+
   database_url =
     System.get_env("DATABASE_URL") ||
       raise """
