@@ -56,13 +56,16 @@ defmodule Defdo.KoeFrame.MediaAnalysis.FfmpexAdapter do
       |> FFmpex.add_output_file(output_path)
       |> add_file_option("-map", "0:#{stream_index}")
       |> FFmpex.add_stream_specifier(stream_type: :subtitle)
-      |> FFmpex.add_stream_option(option_c("copy"))
+      |> FFmpex.add_stream_option(option_c(subtitle_codec(output_format)))
 
     case output_format do
       nil -> command
       format -> FFmpex.add_file_option(command, option_f(format))
     end
   end
+
+  defp subtitle_codec("srt"), do: "srt"
+  defp subtitle_codec(_output_format), do: "copy"
 
   @doc false
   def audio_command(source_path, stream_index, start_ms, duration_ms, output_path, profile) do

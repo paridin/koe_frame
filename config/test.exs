@@ -1,6 +1,12 @@
 import Config
 
 config :koe_frame,
+  transcript_review_tenant_id: "tenant-transcript-test",
+  speaches_base_url: "http://speaches.test.invalid",
+  speaches_model: "test/faster-whisper",
+  speaches_timeout_ms: 1_000,
+  subtitler_cue_base_url: "https://subtitler.test.invalid",
+  subtitler_cue_timeout_ms: 1_000,
   media_staging_root: Path.join(System.user_home!(), ".koe_frame-test-staging")
 
 config :defdo_tenant, enforcement: :test_enforce

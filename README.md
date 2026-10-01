@@ -60,3 +60,29 @@ when it is absent; its parent must already exist. An existing root must already
 have mode `0750` and the configured media group. KoeFrame rejects an
 unprovisioned root without changing its permissions. Use a dedicated staging
 directory, separate from the shared writable media-library directory.
+
+## Transcript review preview
+
+The local operator pilot can list a media file's global stream indexes, then
+compare a short word-level Speaches transcript against cues normalized by
+Subtitler:
+
+    mix koe_frame.transcript_review --file /absolute/path/episode.mkv --list-streams
+    mix koe_frame.transcript_review --file /absolute/path/episode.mkv \
+      --audio-stream 1 --subtitle-stream 3 --source-language ja \
+      --start-ms 5000 --duration-ms 30000
+
+Mix configuration reads KOE_FRAME_TENANT_ID,
+KOE_FRAME_SPEACHES_BASE_URL, KOE_FRAME_SPEACHES_MODEL, and
+KOE_FRAME_SPEACHES_TIMEOUT_MS. Subtitler uses the existing
+SUBTITLER_CUE_BASE_URL and Vault reference SUBTITLER_CUE_TOKEN_REF.
+Configure private service addresses and the KoeFrame tenant before running a
+preview. The preview streams only the extracted WAV to Speaches and sends only
+the extracted SRT text through KoeFrame's Vault-backed Subtitler client. It
+prints a transient JSON report and removes temporary media files on success or
+failure; it does not persist transcripts, edit subtitle files, or call the Hub.
+
+The release image has no Mix executable. A NAS preview runs through release RPC
+after confirming the configured Speaches and Subtitler services and tenant:
+
+    bin/koe_frame rpc 'Defdo.Tenant.Context.with_context(Application.fetch_env!(:koe_frame, :transcript_review_tenant_id), fn -> IO.inspect(Defdo.KoeFrame.TranscriptReview.preview(%{path: "/media/anime/episode.mkv", audio_stream: 1, subtitle_stream: 3, source_language: "ja", start_ms: 5000, duration_ms: 30000})) end)'

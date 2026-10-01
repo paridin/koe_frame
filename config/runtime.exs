@@ -29,7 +29,13 @@ config :koe_frame, Defdo.KoeFrameWeb.Endpoint,
 config :koe_frame,
   subtitler_cue_base_url: System.get_env("SUBTITLER_CUE_BASE_URL"),
   subtitler_cue_token_ref: System.get_env("SUBTITLER_CUE_TOKEN_REF"),
-  subtitler_cue_timeout_ms: String.to_integer(System.get_env("SUBTITLER_CUE_TIMEOUT_MS", "30000"))
+  subtitler_cue_timeout_ms:
+    String.to_integer(System.get_env("SUBTITLER_CUE_TIMEOUT_MS", "30000")),
+  transcript_review_tenant_id: System.get_env("KOE_FRAME_TENANT_ID"),
+  speaches_base_url: System.get_env("KOE_FRAME_SPEACHES_BASE_URL"),
+  speaches_model:
+    System.get_env("KOE_FRAME_SPEACHES_MODEL", "deepdml/faster-whisper-large-v3-turbo-ct2"),
+  speaches_timeout_ms: System.get_env("KOE_FRAME_SPEACHES_TIMEOUT_MS", "180000")
 
 if config_env() == :dev do
   # Reload browser tabs when matching files change.
