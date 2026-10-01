@@ -17,8 +17,19 @@ compile against Subtitler's private repository, embed its Phoenix runtime, or
 share its database.
 
 See [`product.md`](product.md) for the approved product scope and transfer
-decision. This Phoenix scaffold is the starting server, not a completed intake
-or localization workflow.
+decision. The first intake foundation now persists tenant-scoped upload
+sessions, resumes bounded chunks from the committed offset, verifies the
+whole-file SHA-256, and finalizes into a server-owned staging tree with
+configured modes and owner/group. Published files use `0640`; directories use
+`0750` and retain KoeFrame ownership for new uploads while the configured media
+group can read and traverse them. Partial upload files are private (`0600`).
+The final publish uses the
+`Defdo.Uploader.Adapter` contract from `defdo_uploader`; KoeFrame supplies the
+filesystem adapter because it owns the NAS path and permission policy.
+
+The HTTP/Tus endpoint, authentication edge, and Mac client are still pending;
+the current context is not exposed as an unauthenticated route. P-01 is not
+complete until a client can transfer and resume a real large directory tree.
 
 ## Development
 
@@ -37,3 +48,10 @@ The initial schema wrapper installs `defdo_tenant`, `defdo_vault`, Oban,
 Integration credentials belong in Vault; the app stores references only.
 Production config must inject `DEFDO_VAULT_PRIMARY_KEY_ID` and
 `DEFDO_VAULT_KEYS_JSON` through its secret provider.
+
+The intake finalizer also requires `KOE_FRAME_STAGING_ROOT`,
+`KOE_FRAME_MEDIA_UID`, and `KOE_FRAME_MEDIA_GID` in production. Run KoeFrame
+with a service identity permitted to assign that UID/GID and write the staging
+filesystem. The staging root's parent chain must not be group/world-writable,
+even when a directory has the sticky bit; use a dedicated staging directory,
+not `/tmp` or the shared writable media-library directory.
