@@ -56,6 +56,7 @@ defmodule Mix.Tasks.KoeFrame.TranscriptReview do
     with {:ok, path} <- required_file(options),
          {:ok, request} <- preview_request(options, path),
          {:ok, tenant_id} <- transcript_tenant(),
+         :ok <- start_application(),
          result <-
            Context.with_context(tenant_id, fn ->
              TranscriptReview.preview(request)
@@ -65,6 +66,11 @@ defmodule Mix.Tasks.KoeFrame.TranscriptReview do
     else
       {:error, reason} -> fail(reason)
     end
+  end
+
+  defp start_application do
+    Mix.Task.run("app.start")
+    :ok
   end
 
   defp required_file(options) do

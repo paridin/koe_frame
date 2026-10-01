@@ -79,8 +79,10 @@ SUBTITLER_CUE_BASE_URL and Vault reference SUBTITLER_CUE_TOKEN_REF.
 Configure private service addresses and the KoeFrame tenant before running a
 preview. The preview streams only the extracted WAV to Speaches and sends only
 the extracted SRT text through KoeFrame's Vault-backed Subtitler client. It
-prints a transient JSON report and removes temporary media files on success or
-failure; it does not persist transcripts, edit subtitle files, or call the Hub.
+starts the KoeFrame application so Vault can use the Repo, prints a transient
+JSON report, and removes temporary media files on success or failure; it does
+not persist transcripts, edit subtitle files, or call the Hub. Stream listing
+does not start the application or require Vault credentials.
 
 The release image has no Mix executable. A NAS preview runs through release RPC
 after confirming the configured Speaches and Subtitler services and tenant:

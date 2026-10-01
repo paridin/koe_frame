@@ -40,9 +40,11 @@ contains subtitle text only; video and audio bytes stay in KoeFrame.
   `project_key`, `otp_app=koe_frame`, and environment.
 - `SUBTITLER_CUE_TIMEOUT_MS` — request and connection timeout; defaults to
   30,000 ms.
-- Subtitler's `SUBTITLER_CUE_API_TOKEN` must contain the same bearer value.
-  Do not commit or print either copy. The deployment secret provider must
-  supply Subtitler's expected value and Vault's keyring material at runtime.
+- Subtitler reads its copy of the bearer value from the read-only mounted secret
+  file `/run/secrets/subtitler_cue_api_token`, provisioned by the deployment
+  secret provider from `defdo_vault`. Do not pass the token through a process
+  environment variable or commit or print either copy. The provider must also
+  supply Vault's keyring material to KoeFrame at runtime.
 
 ## Boundaries
 
