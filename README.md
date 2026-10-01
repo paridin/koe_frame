@@ -77,7 +77,9 @@ KOE_FRAME_SPEACHES_BASE_URL, KOE_FRAME_SPEACHES_MODEL, and
 KOE_FRAME_SPEACHES_TIMEOUT_MS. Subtitler uses the existing
 SUBTITLER_CUE_BASE_URL and Vault reference SUBTITLER_CUE_TOKEN_REF.
 Configure private service addresses and the KoeFrame tenant before running a
-preview. The preview streams only the extracted WAV to Speaches and sends only
+preview. Run the preview only after an auth-enabled Subtitler image is deployed;
+released `0.1.11` predates cue endpoint authentication. The preview streams only
+the extracted WAV to Speaches and sends only
 the extracted SRT text through KoeFrame's Vault-backed Subtitler client. It
 starts the KoeFrame application so Vault can use the Repo, prints a transient
 JSON report, and removes temporary media files on success or failure; it does
