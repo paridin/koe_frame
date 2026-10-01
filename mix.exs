@@ -78,7 +78,7 @@ defmodule Defdo.KoeFrame.MixProject do
       {:defdo_tenant, "~> 0.17.0", organization: "defdo"},
       {:defdo_tenant_provision, "~> 0.3",
        defdo_dep_opts("DEFDO_TENANT_PROVISION_PATH", "../defdo_tenant_provision")},
-      {:defdo_tenant_provision_web, "~> 0.2",
+      {:defdo_tenant_provision_web, "~> 0.3",
        defdo_dep_opts("DEFDO_TENANT_PROVISION_WEB_PATH", "../defdo_tenant_provision_web")},
       {:defdo_vault, "~> 0.16", organization: "defdo"},
       {:defdo_auth_client, "~> 0.9",
