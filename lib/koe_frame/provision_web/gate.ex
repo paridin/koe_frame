@@ -27,7 +27,7 @@ defmodule Defdo.KoeFrame.ProvisionWeb.Gate do
   @impl true
   def owner?(%Profile{tenant_id: tenant_id}) when is_binary(tenant_id) do
     case CredentialStore.fetch(tenant_id) do
-      {:ok, credential} when is_map(credential) -> true
+      {:ok, credential} -> CredentialStore.valid_admin_access?(credential)
       {:error, reason} when reason in [:not_found, :unknown_project] -> false
       {:error, _reason} -> true
       _ -> true

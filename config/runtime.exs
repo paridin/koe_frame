@@ -51,7 +51,9 @@ config :koe_frame,
   auth_callback_redirect_host: System.get_env("KOE_FRAME_AUTH_CALLBACK_REDIRECT_HOST"),
   start_oban?: System.get_env("KOE_FRAME_START_OBAN", "false") in ["true", "1"],
   tenant_region: System.get_env("KOE_FRAME_TENANT_REGION", "mx"),
-  tenant_environment: System.get_env("KOE_FRAME_TENANT_ENVIRONMENT", "development"),
+  tenant_environment:
+    System.get_env("KOE_FRAME_TENANT_ENVIRONMENT") ||
+      if(config_env() == :prod, do: "production", else: "development"),
   environment: config_env()
 
 if config_env() == :dev and System.get_env("KOE_FRAME_DEV_TLS") in ["true", "1"] do

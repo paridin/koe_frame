@@ -5,12 +5,10 @@ defmodule Defdo.KoeFrame.Auth.OAuthApp do
   alias Defdo.KoeFrame.ProvisionWebAdapter
   alias Defdo.Tenant.Schema.Profile
 
-  @required ~w(site client_id client_secret redirect_uri)
-
   def config(%Plug.Conn{host: host}) do
     with %Profile{tenant_id: tenant_id} <- ProvisionWebAdapter.profile_for_host(host),
          {:ok, credentials} <- CredentialStore.fetch(tenant_id),
-         true <- valid?(credentials) do
+         true <- CredentialStore.valid_admin_access?(credentials) do
       credentials
       |> atomize_known_fields()
       |> Map.put(:tenant_id, tenant_id)
@@ -20,15 +18,6 @@ defmodule Defdo.KoeFrame.Auth.OAuthApp do
   end
 
   def config(_), do: nil
-
-  defp valid?(credentials) do
-    Enum.all?(@required, fn key ->
-      value = Map.get(credentials, key) || Map.get(credentials, String.to_existing_atom(key))
-      is_binary(value) and String.trim(value) != ""
-    end)
-  rescue
-    ArgumentError -> false
-  end
 
   defp atomize_known_fields(credentials) do
     for key <- ~w(site client_id client_secret redirect_uri connection), into: %{} do

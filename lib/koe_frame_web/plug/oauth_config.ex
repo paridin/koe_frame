@@ -14,22 +14,22 @@ defmodule Defdo.KoeFrameWeb.Plug.OAuthConfig do
     case OAuthApp.config(conn) do
       %{client_id: _client_id, client_secret: _secret} = config ->
         AuthorizeCodeWithPKCE.put_config(config)
-        put_connection_id(conn, config)
+        pin_connection_id(conn, config)
 
       _ ->
         conn |> send_resp(:service_unavailable, "Login is not configured") |> halt()
     end
   end
 
-  defp put_connection_id(conn, %{connection: id}) when is_binary(id) and id != "" do
+  @doc false
+  def pin_connection_id(conn, %{connection: id}) when is_binary(id) and id != "" do
     conn = fetch_query_params(conn)
 
-    if Map.has_key?(conn.query_params, "connection_id") do
-      conn
-    else
-      %{conn | query_params: Map.put(conn.query_params, "connection_id", id)}
-    end
+    %{conn | query_params: Map.put(conn.query_params, "connection_id", id)}
   end
 
-  defp put_connection_id(conn, _config), do: conn
+  def pin_connection_id(conn, _config) do
+    conn = fetch_query_params(conn)
+    %{conn | query_params: Map.delete(conn.query_params, "connection_id")}
+  end
 end

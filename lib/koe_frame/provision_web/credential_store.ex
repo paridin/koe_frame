@@ -14,6 +14,23 @@ defmodule Defdo.KoeFrame.ProvisionWeb.CredentialStore do
 
   @project_key "koe_frame"
   @secret_code "defdo_auth_admin"
+  @required_credential_fields [
+    {"site", :site},
+    {"client_id", :client_id},
+    {"client_secret", :client_secret},
+    {"redirect_uri", :redirect_uri},
+    {"connection", :connection}
+  ]
+
+  @doc "True when a fetched Vault value can complete KoeFrame's admin login."
+  def valid_admin_access?(credential) when is_map(credential) do
+    Enum.all?(@required_credential_fields, fn {string_key, atom_key} ->
+      value = Map.get(credential, string_key) || Map.get(credential, atom_key)
+      is_binary(value) and String.trim(value) != ""
+    end)
+  end
+
+  def valid_admin_access?(_credential), do: false
 
   @impl true
   def persist_admin_access(%Profile{tenant_id: tenant_id}, _key, credential)
