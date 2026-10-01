@@ -76,7 +76,13 @@ defmodule Defdo.KoeFrame.MixProject do
       {:defdo_tasks, "~> 0.7", organization: "defdo"},
       {:defdo_order, "~> 0.7", organization: "defdo"},
       {:defdo_tenant, "~> 0.17.0", organization: "defdo"},
+      {:defdo_tenant_provision, "~> 0.3",
+       defdo_dep_opts("DEFDO_TENANT_PROVISION_PATH", "../defdo_tenant_provision")},
+      {:defdo_tenant_provision_web, "~> 0.3",
+       defdo_dep_opts("DEFDO_TENANT_PROVISION_WEB_PATH", "../defdo_tenant_provision_web")},
       {:defdo_vault, "~> 0.16", organization: "defdo"},
+      {:defdo_auth_client, "~> 0.9",
+       defdo_dep_opts("DEFDO_AUTH_CLIENT_PATH", "../defdo_auth_client")},
       {:defdo_uploader, "~> 0.3", organization: "defdo"},
       {:ffmpex, "~> 0.11.1"},
       {:bandit, "~> 1.12"}
@@ -122,5 +128,15 @@ defmodule Defdo.KoeFrame.MixProject do
       ],
       precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
     ]
+  end
+
+  defp defdo_dep_opts(env_var, default_path) do
+    path = System.get_env(env_var) || Path.expand(default_path, __DIR__)
+
+    if Mix.env() in [:dev, :test] and File.dir?(path) do
+      [path: path, override: true]
+    else
+      [organization: "defdo"]
+    end
   end
 end

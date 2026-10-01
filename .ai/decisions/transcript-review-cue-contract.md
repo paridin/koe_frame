@@ -5,7 +5,8 @@ topic: koe-frame-transcript-review
 
 # Use Subtitler's supported cue contract from the transcript-review pilot
 
-**Status:** accepted for the one-segment pilot, 2026-09-29.
+**Status:** accepted for the one-segment pilot, 2026-09-29; implemented against
+the released Subtitler 0.1.11 cue API.
 
 ## Decision
 

@@ -15,6 +15,13 @@
   `defdo_vault` under the process's established tenant context, requires HTTPS
   in production, rejects redirects, and caps response bodies at 8 MiB. It
   sends no media bytes and performs no translation yet.
+- TranscriptReview.stream_inventory/1 lists normalized FFprobe metadata and
+  global stream indexes. TranscriptReview.preview/1 extracts one 1–60-second
+  audio segment and one supported text subtitle stream, requests word
+  timestamps from configured Speaches, normalizes cues through
+  Subtitler.normalize_srt/1, and reports timing overlaps on the source-media
+  timeline. The preview is transient and requires the calling edge to establish
+  the tenant context used by the Vault-backed Subtitler client.
 - `Defdo.KoeFrame.MediaIntake.Uploads` creates tenant-scoped upload sessions,
   reports committed offsets, appends bounded chunks, lists files in stable
   relative-path order, and finalizes only after whole-file SHA-256 validation.
@@ -32,6 +39,8 @@
 
 ## Use when
 
+- An operator wants a transient word-level transcript aligned with cues from a
+  selected subtitle stream before deciding whether translation needs review.
 - A trusted KoeFrame workflow needs to inspect a local media file, copy an
   embedded subtitle stream, or extract a bounded audio segment.
 - A server-side caller has already authenticated and restored tenant context,
@@ -45,8 +54,9 @@
   unauthenticated client boundary.
 - There is no Mac directory scanner/client, Tus endpoint, batch-completion
   action, retention worker, or Sonarr import planner yet.
-- There is no ASR integration, spoken-word alignment screen, subtitle
-  translation flow, Hub task submission, or final media-library placement.
+- The transcript preview is a command/RPC experiment, not a saved review
+  screen. KoeFrame does not yet translate cues through the Hub, retain
+  transcript history, or place media in its final library path.
 - The runtime image must provide compatible `ffprobe` and `ffmpeg` binaries;
   Ffmpex/Rambo do not bundle them. Image and NAS runtime readiness must be
   verified separately from these application modules.

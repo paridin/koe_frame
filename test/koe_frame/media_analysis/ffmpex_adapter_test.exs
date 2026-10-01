@@ -85,15 +85,26 @@ defmodule Defdo.KoeFrame.MediaAnalysis.FfmpexAdapterTest do
     assert is_nil(stream.attached_picture)
   end
 
-  test "subtitle command maps and copies the requested subtitle stream with no overwrite" do
+  test "converts selected subtitle streams to SRT with no overwrite" do
     command = FfmpexAdapter.subtitle_command("/tmp/source.mkv", 6, "/tmp/subtitle.srt", "srt")
     {_executable, args} = FFmpex.prepare(command)
 
     assert "-n" in args
     assert adjacent?(args, "-map", "0:6")
-    assert adjacent?(args, "-c:s", "copy")
+    assert adjacent?(args, "-c:s", "srt")
     assert adjacent?(args, "-f", "srt")
     assert List.last(args) == "/tmp/subtitle.srt"
+    refute "-y" in args
+  end
+
+  test "keeps codec-copy behavior when no output format is requested" do
+    command = FfmpexAdapter.subtitle_command("/tmp/source.mkv", 6, "/tmp/subtitle.ass", nil)
+    {_executable, args} = FFmpex.prepare(command)
+
+    assert "-n" in args
+    assert adjacent?(args, "-map", "0:6")
+    assert adjacent?(args, "-c:s", "copy")
+    assert List.last(args) == "/tmp/subtitle.ass"
     refute "-y" in args
   end
 

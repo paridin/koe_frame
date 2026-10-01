@@ -1,6 +1,8 @@
 defmodule Defdo.KoeFrameWeb.Router do
   use Defdo.KoeFrameWeb, :router
 
+  import Defdo.Tenant.ProvisionWeb, only: [tenant_provision_routes: 2]
+
   pipeline :browser do
     plug :accepts, ["html"]
     plug :fetch_session
@@ -14,10 +16,26 @@ defmodule Defdo.KoeFrameWeb.Router do
     plug :accepts, ["json"]
   end
 
+  pipeline :oauth do
+    plug :accepts, ["html"]
+    plug Defdo.KoeFrameWeb.Plug.OAuthConfig
+
+    plug Defdo.DefdoAuth.Plug.AuthorizeCodeWithPKCE,
+      scopes: ~w(openid profile)
+  end
+
   scope "/", Defdo.KoeFrameWeb do
     pipe_through :browser
 
+    tenant_provision_routes("/install", adapter: Defdo.KoeFrame.ProvisionWebAdapter)
+
     get "/", PageController, :home
+  end
+
+  scope "/", Defdo.KoeFrameWeb do
+    pipe_through [:browser, :oauth]
+
+    get "/auth/callback", Plug.OAuthCallback, []
   end
 
   # Other scopes may use custom stacks.

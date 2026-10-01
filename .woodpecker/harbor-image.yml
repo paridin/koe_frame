@@ -1,8 +1,7 @@
-# A unique development tag runs the release gates and then publishes an amd64
-# image for the NAS pilot. Use a new VERSION for every attempted release; do
-# not move or rebuild an already published tag. This pipeline does not deploy
-# the KoeFrame web server; NAS validation runs bounded media-analysis commands
-# as a one-shot process.
+# A unique development tag runs the release gates and publishes an amd64 image
+# for the dev installer and NAS pilot. Use a new VERSION for every attempted
+# release; do not move or rebuild an already published tag. Deployment is a
+# separate change in defdo_apps_deployment.
 labels:
   platform: linux/amd64
 
