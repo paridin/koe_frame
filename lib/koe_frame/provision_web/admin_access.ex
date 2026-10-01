@@ -5,9 +5,15 @@ defmodule Defdo.KoeFrame.ProvisionWeb.AdminAccess do
 
   alias Defdo.Tenant.Provision.AdminAccess.Reference
   alias Defdo.Tenant.ProvisionWeb.AdminAccess.Remote
+  alias Defdo.KoeFrame.ProvisionWeb.IdentityReadiness
 
   @impl true
-  def preflight(context), do: Remote.preflight(context)
+  def preflight(context) do
+    with :ok <- IdentityReadiness.preflight(context),
+         :ok <- Remote.preflight(context) do
+      :ok
+    end
+  end
 
   @impl true
   def ensure(tenant, attrs, context) do

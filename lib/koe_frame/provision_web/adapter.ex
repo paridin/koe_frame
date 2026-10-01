@@ -70,6 +70,8 @@ defmodule Defdo.KoeFrame.ProvisionWebAdapter do
     %{
       site: Application.get_env(:koe_frame, :auth_site),
       token: Application.get_env(:koe_frame, :auth_bootstrap_token),
+      setup_client_id: Application.get_env(:koe_frame, :auth_setup_client_id),
+      setup_redirect_uri: Application.get_env(:koe_frame, :auth_setup_redirect_uri),
       credential_store: CredentialStore,
       registration_key: tenant_key(params),
       redirect_host: host,

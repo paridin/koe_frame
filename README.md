@@ -93,3 +93,22 @@ The release image has no Mix executable. A NAS preview runs through release RPC
 after confirming the configured Speaches and Subtitler services and tenant:
 
     bin/koe_frame rpc 'Defdo.Tenant.Context.with_context(Application.fetch_env!(:koe_frame, :transcript_review_tenant_id), fn -> IO.inspect(Defdo.KoeFrame.TranscriptReview.preview(%{path: "/media/anime/episode.mkv", audio_stream: 1, subtitle_stream: 3, source_language: "ja", start_ms: 5000, duration_ms: 30000})) end)'
+
+## First-run installer identity checks
+
+Before the installer asks for the instance name, canonical domain, or first
+administrator credentials, it verifies the configured IdP's OIDC discovery
+document and signing keys. It also reads the configured public PKCE app
+contract through `defdo_auth_client` and requires the registered app to have
+an enabled login connection, the exact callback URI, PKCE, and only the
+`openid profile` scopes. The Auth bootstrap preflight then checks the selected
+host and backend dependencies. A missing or unavailable IdP, signing key set,
+app registration, login connection, or bootstrap consumer keeps the instance
+and administrator forms hidden.
+
+Configure `DEFDO_AUTH_SITE`, `DEFDO_AUTH_SETUP_CLIENT_ID`, and
+`DEFDO_AUTH_SETUP_REDIRECT_URI` for the setup client. The setup client is
+public and has no client secret; its minimum contract is an SPA client using
+authorization code with PKCE and the `openid profile` scopes. The separate
+server-only `DEFDO_AUTH_BOOTSTRAP_TOKEN` is used only for the trusted Auth
+bootstrap API.
