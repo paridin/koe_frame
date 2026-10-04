@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-dev.7 — 2026-10-04
+
+### Fixed
+
+- Accept authenticated IdP sessions when the IdP and KoeFrame use distinct
+  tenant namespaces; keep KoeFrame's tenant for local credential lookup.
+
 ## 0.1.0-dev.6 — 2026-10-03
 
 ### Added

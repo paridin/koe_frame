@@ -37,7 +37,7 @@ defmodule Defdo.KoeFrame.Admin.PKCESessionAuthenticatorTest do
     :ok
   end
 
-  test "introspects the access token from the SDK cache and returns only normalized claims" do
+  test "accepts an IdP tenant distinct from the KoeFrame tenant and returns normalized claims" do
     cache_pkce_session()
 
     Application.put_env(
@@ -48,7 +48,7 @@ defmodule Defdo.KoeFrame.Admin.PKCESessionAuthenticatorTest do
          "active" => true,
          "sub" => "user-1",
          "client_id" => "koe-frame-login",
-         "tenant_id" => @tenant_id,
+         "tenant_id" => "idp-tenant-1",
          "scope" => "openid profile koe-frame:admin",
          "private_claim" => "never-return-this"
        }}
@@ -83,7 +83,7 @@ defmodule Defdo.KoeFrame.Admin.PKCESessionAuthenticatorTest do
     refute_received {:token_introspection_requested, _, _}
   end
 
-  test "rejects inactive, cross-tenant, and subject-mismatched introspection results" do
+  test "rejects inactive, subject-mismatched, and client-mismatched introspection results" do
     cache_pkce_session()
 
     for token_info <- [
@@ -95,23 +95,17 @@ defmodule Defdo.KoeFrame.Admin.PKCESessionAuthenticatorTest do
           },
           %{
             "active" => true,
-            "sub" => "user-1",
-            "client_id" => "koe-frame-login",
-            "tenant_id" => "tenant-2"
-          },
-          %{
-            "active" => true,
             "sub" => "other-user",
             "client_id" => "koe-frame-login",
-            "tenant_id" => @tenant_id
+            "tenant_id" => "idp-tenant-1"
           },
           %{
             "active" => true,
             "sub" => "user-1",
             "client_id" => "different-client",
-            "tenant_id" => @tenant_id
+            "tenant_id" => "idp-tenant-1"
           },
-          %{"active" => true, "sub" => "user-1", "tenant_id" => @tenant_id}
+          %{"active" => true, "sub" => "user-1", "tenant_id" => "idp-tenant-1"}
         ] do
       Application.put_env(:koe_frame, :admin_token_verifier_test_result, {:ok, token_info})
 

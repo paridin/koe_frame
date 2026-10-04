@@ -35,6 +35,11 @@ defmodule Defdo.KoeFrame.Admin.PKCESessionAuthenticator do
   @moduledoc """
   Resolves the PKCE plug's opaque session key using its server-side caches and
   verifies the cached access token with Defdo Auth before returning any claims.
+
+  The tenant passed to `authenticate/2` is KoeFrame's tenant and scopes its
+  Vault credential lookup. The IdP tenant on the introspected token is a
+  separate namespace; the configured IdP site and exact OAuth client ID bind
+  the token to this login.
   """
 
   @behaviour Defdo.KoeFrame.Admin.SessionAuthenticator
@@ -53,8 +58,7 @@ defmodule Defdo.KoeFrame.Admin.PKCESessionAuthenticator do
            token_verifier().introspect(access_token, verifier_config(credentials, tenant_id)),
          :ok <- active_token(token_info),
          :ok <- matching_client(token_info, value(credentials, :client_id)),
-         :ok <- matching_subject(profile, token_info),
-         :ok <- matching_tenant(token_info, tenant_id) do
+         :ok <- matching_subject(profile, token_info) do
       {:ok,
        %{
          id: claim(profile, "sub"),
@@ -146,17 +150,6 @@ defmodule Defdo.KoeFrame.Admin.PKCESessionAuthenticator do
     Map.get(token_info, "sub") || Map.get(token_info, "subject") ||
       Map.get(token_info, "user_id") || Map.get(token_info, "username")
   end
-
-  defp matching_tenant(token_info, tenant_id) do
-    case token_tenant_id(token_info) do
-      ^tenant_id -> :ok
-      _other -> {:error, :identity_session_unavailable}
-    end
-  end
-
-  defp token_tenant_id(%{"tenant" => %{"id" => tenant_id}}), do: tenant_id
-  defp token_tenant_id(%{"tenant" => tenant_id}) when is_binary(tenant_id), do: tenant_id
-  defp token_tenant_id(token_info), do: Map.get(token_info, "tenant_id")
 
   defp scopes(token_info) do
     case Map.get(token_info, "scopes") || Map.get(token_info, "scope") || [] do
