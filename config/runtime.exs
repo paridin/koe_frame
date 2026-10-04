@@ -41,7 +41,12 @@ config :koe_frame,
   speaches_base_url: System.get_env("KOE_FRAME_SPEACHES_BASE_URL"),
   speaches_model:
     System.get_env("KOE_FRAME_SPEACHES_MODEL", "deepdml/faster-whisper-large-v3-turbo-ct2"),
-  speaches_timeout_ms: System.get_env("KOE_FRAME_SPEACHES_TIMEOUT_MS", "180000")
+  speaches_timeout_ms: System.get_env("KOE_FRAME_SPEACHES_TIMEOUT_MS", "180000"),
+  speaches_admin_timeout_ms: System.get_env("KOE_FRAME_SPEACHES_ADMIN_TIMEOUT_MS", "1800000"),
+  cactus_whistle_runner: System.get_env("KOE_FRAME_CACTUS_WHISTLE_RUNNER"),
+  cactus_whistle_downloader: System.get_env("KOE_FRAME_CACTUS_WHISTLE_DOWNLOADER"),
+  cactus_whistle_model_dir: System.get_env("KOE_FRAME_CACTUS_WHISTLE_MODEL_DIR"),
+  cactus_whistle_timeout_ms: System.get_env("KOE_FRAME_CACTUS_WHISTLE_TIMEOUT_MS", "1800000")
 
 config :koe_frame,
   setup_token: System.get_env("SETUP_TOKEN"),
@@ -51,6 +56,7 @@ config :koe_frame,
   auth_setup_redirect_uri: System.get_env("DEFDO_AUTH_SETUP_REDIRECT_URI"),
   auth_environment: System.get_env("KOE_FRAME_AUTH_ENVIRONMENT", Atom.to_string(config_env())),
   auth_callback_redirect_host: System.get_env("KOE_FRAME_AUTH_CALLBACK_REDIRECT_HOST"),
+  admin_scope: System.get_env("KOE_FRAME_ADMIN_SCOPE", "koe-frame:admin"),
   start_oban?: System.get_env("KOE_FRAME_START_OBAN", "false") in ["true", "1"],
   tenant_region: System.get_env("KOE_FRAME_TENANT_REGION", "mx"),
   tenant_environment:

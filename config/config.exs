@@ -54,6 +54,8 @@ config :defdo_vault,
 
 config :defdo_auth_client, :cache_adapter, Defdo.AuthClient.Cache.Cachex
 
+config :koe_frame, :admin_scope, "koe-frame:admin"
+
 # Configure the endpoint
 config :koe_frame, Defdo.KoeFrameWeb.Endpoint,
   url: [host: "localhost"],

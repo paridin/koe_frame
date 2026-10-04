@@ -20,4 +20,12 @@ defmodule Defdo.KoeFrameWeb.Plug.OAuthConfigTest do
 
     refute Map.has_key?(conn.query_params, "connection_id")
   end
+
+  test "adds the configured KoeFrame admin scope to the PKCE authorization request" do
+    conn = conn(:get, "/auth/callback")
+
+    params = OAuthConfig.authorize_params([nonce: "nonce"], conn)
+
+    assert params[:scope] == "email openid profile koe-frame:admin"
+  end
 end

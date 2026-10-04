@@ -19,6 +19,8 @@ defmodule Defdo.KoeFrameWeb.Plug.OAuthCallback do
         conn
         |> put_session("tenant_id", tenant_id)
         |> put_session(:tenant_id, tenant_id)
+        |> put_session("tenant_provision_host", conn.host)
+        |> put_session(:tenant_provision_host, conn.host)
         |> redirect_home()
 
       _ ->

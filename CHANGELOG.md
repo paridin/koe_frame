@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.0-dev.6 — 2026-10-03
+
+### Added
+
+- Add admin identity diagnostics and scope-protected system administration.
+- Add a Japanese speech model lab with provider inventory, guarded downloads,
+  temporary cross-provider comparisons, and optional character error rate.
+- Add Cactus Whistle as an experimental native-provider candidate with visible
+  evaluation and promotion blockers.
+
 ## 0.1.0-dev.5 — 2026-10-02
 
 ### Fixed

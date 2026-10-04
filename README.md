@@ -112,3 +112,60 @@ public and has no client secret; its minimum contract is an SPA client using
 authorization code with PKCE and the `openid profile` scopes. The separate
 server-only `DEFDO_AUTH_BOOTSTRAP_TOKEN` is used only for the trusted Auth
 bootstrap API.
+
+## Admin identity diagnostics
+
+After signing in, open `/admin` to inspect the current identity path. The page
+checks OIDC discovery, signing keys, the public PKCE setup-client contract, the
+read-only Auth first-admin preflight, and the tenant's stored admin login
+registration. Admin access also requires an active token introspected through
+`defdo_auth_client`, a matching tenant and login client, and the configured
+`koe-frame:admin` scope. The PKCE session's opaque cache key is never treated as
+an access token. Authenticated users without the admin scope receive a 403 page.
+The diagnostics never display OAuth credentials.
+
+The administrator login registration in Auth must allow `koe-frame:admin` and
+the intended administrator must be granted that scope. Set
+`KOE_FRAME_ADMIN_SCOPE` only when the IdP uses a different, deliberately
+provisioned KoeFrame admin scope; the same configured scope is requested during
+login and required by the admin gate.
+
+The Auth first-admin preflight does **not** create an IAM user. A passing
+preflight proves the endpoint and its current prerequisites accepted a
+read-only check; an actual user-creation test still requires a disposable
+instance setup flow.
+
+## Admin speech model lab
+
+Administrators with the configured KoeFrame admin scope can open
+`/admin/speech-models` to inspect models from the configured Speaches service.
+The catalog shows Japanese automatic-speech-recognition models only. A model
+download is rechecked against the current registry, then against the installed
+inventory; this action does not change `KOE_FRAME_SPEACHES_MODEL`, which remains
+the transcription default.
+
+The comparison accepts one WAV clip up to 25 MB and 30 seconds and runs two to
+four installed models against the same temporary file. KoeFrame removes the
+temporary copy when comparison finishes. A reference transcript is optional;
+when supplied, the panel reports character error rate after Unicode NFKC
+normalization and removing whitespace, punctuation, and symbols.
+
+The Speaches catalog includes Japanese ASR candidates and installs through the
+configured Speaches API. Cactus Whistle appears as an experimental candidate
+through its own Elixir adapter, which invokes the configured native `needle`
+runner and downloader. Configure `KOE_FRAME_CACTUS_WHISTLE_RUNNER`,
+`KOE_FRAME_CACTUS_WHISTLE_DOWNLOADER`, and
+`KOE_FRAME_CACTUS_WHISTLE_MODEL_DIR`; keep the model directory on persistent
+storage if downloads should survive container replacement. The runner converts
+the uploaded WAV to 16 kHz mono PCM when needed. The panel permits comparing
+Whistle on Japanese audio so its actual failure rate can be measured, while its
+published language list currently excludes Japanese.
+
+This comparison is exploratory evidence. The lifecycle is exploration, a
+representative Japanese benchmark, repeatable quality and latency evaluation,
+then human review. Promotion is blocked until every stage has evidence; a single
+clip cannot meet that gate. The admin cannot promote or activate models. The
+Speaches install and comparison requests use
+`KOE_FRAME_SPEACHES_ADMIN_TIMEOUT_MS` (default 30 minutes), and Cactus commands
+use `KOE_FRAME_CACTUS_WHISTLE_TIMEOUT_MS` (default 30 minutes). A real Cactus
+download or Japanese audio run has not yet been executed in the NAS environment.

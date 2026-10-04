@@ -4,38 +4,53 @@ defmodule Defdo.KoeFrameWeb.Router do
   import Defdo.Tenant.ProvisionWeb, only: [tenant_provision_routes: 2]
 
   pipeline :browser do
-    plug :accepts, ["html"]
-    plug :fetch_session
-    plug :fetch_live_flash
-    plug :put_root_layout, html: {Defdo.KoeFrameWeb.Layouts, :root}
-    plug :protect_from_forgery
-    plug :put_secure_browser_headers
+    plug(:accepts, ["html"])
+    plug(:fetch_session)
+    plug(:fetch_live_flash)
+    plug(:put_root_layout, html: {Defdo.KoeFrameWeb.Layouts, :root})
+    plug(:protect_from_forgery)
+    plug(:put_secure_browser_headers)
   end
 
   pipeline :api do
-    plug :accepts, ["json"]
+    plug(:accepts, ["json"])
   end
 
   pipeline :oauth do
-    plug :accepts, ["html"]
-    plug Defdo.KoeFrameWeb.Plug.OAuthConfig
+    plug(:accepts, ["html"])
+    plug(Defdo.KoeFrameWeb.Plug.OAuthConfig)
 
-    plug Defdo.DefdoAuth.Plug.AuthorizeCodeWithPKCE,
-      scopes: ~w(openid profile)
+    plug(Defdo.DefdoAuth.Plug.AuthorizeCodeWithPKCE,
+      scopes: ~w(openid profile),
+      authorize_params: &Defdo.KoeFrameWeb.Plug.OAuthConfig.authorize_params/2
+    )
   end
 
   scope "/", Defdo.KoeFrameWeb do
-    pipe_through :browser
+    pipe_through(:browser)
 
     tenant_provision_routes("/install", adapter: Defdo.KoeFrame.ProvisionWebAdapter)
 
-    get "/", PageController, :home
+    get("/", PageController, :home)
   end
 
   scope "/", Defdo.KoeFrameWeb do
-    pipe_through [:browser, :oauth]
+    pipe_through([:browser, :oauth])
 
-    get "/auth/callback", Plug.OAuthCallback, []
+    get("/auth/callback", Plug.OAuthCallback, [])
+  end
+
+  scope "/admin", Defdo.KoeFrameWeb.Admin do
+    pipe_through(:browser)
+
+    live("/", SystemLive, :index)
+    live("/speech-models", SpeechModelsLive, :index)
+  end
+
+  scope "/admin", Defdo.KoeFrameWeb do
+    pipe_through(:browser)
+
+    get("/forbidden", PageController, :forbidden)
   end
 
   # Other scopes may use custom stacks.
@@ -53,10 +68,10 @@ defmodule Defdo.KoeFrameWeb.Router do
     import Phoenix.LiveDashboard.Router
 
     scope "/dev" do
-      pipe_through :browser
+      pipe_through(:browser)
 
-      live_dashboard "/dashboard", metrics: Defdo.KoeFrameWeb.Telemetry
-      forward "/mailbox", Plug.Swoosh.MailboxPreview
+      live_dashboard("/dashboard", metrics: Defdo.KoeFrameWeb.Telemetry)
+      forward("/mailbox", Plug.Swoosh.MailboxPreview)
     end
   end
 end
