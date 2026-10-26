@@ -1,9 +1,34 @@
 # Changelog
 
-## Unreleased
+## 0.1.0-dev.8 — 2026-10-26
 
-### Security — decimal 3.2.0 (EEF-CVE-2026-97853)
-- Dependencies updated to latest compatible versions: bandit 1.12.5 → 1.13.1, decimal 3.1.1 → 3.2.0, defdo_auth_client 0.11.1 → 0.12.0, defdo_migrator 0.5.0 → 0.5.1, defdo_order 0.7.1 → 0.8.0, defdo_theme_components 0.21.0 → 0.25.0, ex_ast 0.13.1 → 0.16.0, flop 0.29.0 → 0.29.1, oban 2.24.1 → 2.24.2, phoenix_pubsub 2.3.0 → 2.4.1, req 0.7.4 → 0.7.5, sourceror 1.12.3 → 1.12.4, spitfire 0.4.2 → 0.4.3, swoosh 1.28.1 → 1.29.0, tesla 1.21.3 → 1.22.0, thousand_island 1.5.0 → 1.6.0.
+### Added
+
+- Add authenticated, resumable Tus uploads with tenant-scoped staging and
+  SHA-256 verification.
+
+### Updated
+
+- Refresh compatible dependencies, including Decimal 3.2.0.
+- Carry the dev.6 admin diagnostics and dev.7 IdP tenant-session fix into this
+  media API candidate.
+
+## 0.1.0-dev.7 — 2026-10-04
+
+### Fixed
+
+- Accept authenticated IdP sessions when the IdP and KoeFrame use distinct
+  tenant namespaces; keep KoeFrame's tenant for local credential lookup.
+
+## 0.1.0-dev.6 — 2026-10-03
+
+### Added
+
+- Add admin identity diagnostics and scope-protected system administration.
+- Add a Japanese speech model lab with provider inventory, guarded downloads,
+  temporary cross-provider comparisons, and optional character error rate.
+- Add Cactus Whistle as an experimental native-provider candidate with visible
+  evaluation and promotion blockers.
 
 ## 0.1.0-dev.5 — 2026-10-02
 

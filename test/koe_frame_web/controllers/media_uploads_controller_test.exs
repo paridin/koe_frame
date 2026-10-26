@@ -53,6 +53,19 @@ defmodule Defdo.KoeFrameWeb.MediaUploadsControllerTest do
     {:ok, tenant: tenant}
   end
 
+  test "advertises Tus capabilities for an authenticated media credential" do
+    conn =
+      build_conn()
+      |> authorize()
+      |> options("/api/v1/media/intakes/#{Ecto.UUID.generate()}/uploads")
+
+    assert conn.status == 204
+    assert get_resp_header(conn, "tus-version") == [@tus_version]
+    assert get_resp_header(conn, "tus-extension") == ["creation"]
+    assert get_resp_header(conn, "cache-control") == ["no-store"]
+    assert_received {:media_credential_seen, @credential}
+  end
+
   test "creates, resumes, inspects, and finalizes an authenticated Tus upload", %{tenant: tenant} do
     bytes = "anime episode bytes"
     intake_id = Ecto.UUID.generate()

@@ -11,6 +11,14 @@ defmodule Defdo.KoeFrameWeb.MediaUploadsController do
   @read_length 64 * 1024
   @metadata_keys ["relative_path", "sha256"]
 
+  def options(conn, _params) do
+    conn
+    |> put_resp_header("tus-version", @tus_version)
+    |> put_resp_header("tus-extension", "creation")
+    |> put_resp_header("cache-control", "no-store")
+    |> send_resp(204, "")
+  end
+
   def create(conn, %{"intake_id" => intake_id}) do
     with :ok <- require_tus_version(conn),
          {:ok, length} <- request_upload_length(conn),
