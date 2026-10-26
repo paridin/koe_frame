@@ -15,7 +15,7 @@ steps:
       - |
         set -eu
         apt-get update -qq
-        apt-get install -y --no-install-recommends build-essential ca-certificates cargo curl git nodejs npm
+        apt-get install -y --no-install-recommends build-essential ca-certificates cargo cmake curl git nodejs npm
         mix do local.hex --force + local.rebar --force
         if [ -z "$${HEX_ORG_TOKEN:-}" ]; then
           echo "hex_org_token is required to resolve private Defdo dependencies." >&2

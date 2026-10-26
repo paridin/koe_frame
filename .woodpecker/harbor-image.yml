@@ -59,7 +59,7 @@ steps:
       - |
         set -eu
         apt-get update -qq
-        apt-get install -y --no-install-recommends build-essential ca-certificates cargo curl git nodejs npm
+        apt-get install -y --no-install-recommends build-essential ca-certificates cargo cmake curl git nodejs npm
         mix do local.hex --force + local.rebar --force
         mix hex.organization auth defdo --key "$$HEX_ORG_TOKEN"
         mix deps.get --check-locked
