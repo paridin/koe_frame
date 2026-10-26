@@ -288,8 +288,9 @@ the client never asks the NAS to preserve macOS ownership.
 
 - app: KoeFrame (`koe_frame` repository) — resumable authenticated NAS intake
   and Mac client are product gaps to implement here; tenant-scoped upload
-  sessions and local staging are now implemented, while the HTTP boundary and
-  client remain pending.
+  sessions and local staging are implemented. The authenticated Tus HTTP
+  boundary is implemented in the current branch; the Mac client and outside-in
+  transfer proof remain pending.
 - uses: defdo_memory_hub — durable contexts and ACP research/agent tasks;
   KoeFrame and Subtitler use the same authenticated task API and signed
   callback contract for bounded subtitle batches. Each app has its own scoped
@@ -317,13 +318,14 @@ the client never asks the NAS to preserve macOS ownership.
 - uses: Sonarr API — authoritative series and root-path catalog for import
   decisions.
 - uses: Jellyfin — playback target for final media and subtitle tracks.
-- gap: authenticated upload API — use `defdo_auth_client` credential
-  introspection and a tenant-registered `koe_frame:media:write` scope before
-  exposing upload routes; the private package is not currently resolved in
-  KoeFrame's dependency lock.
+- partial: authenticated upload API — routes use `defdo_auth_client`
+  credential introspection and require `koe_frame:media:write`; production
+  still needs the internal introspection token and the tenant-registered scope
+  grant. Mac client and real interrupted directory transfer remain pending.
 - partial: resumable filesystem transfer — session/chunk/finalize foundation
   exists and the final write uses KoeFrame's `defdo_uploader` adapter;
-  authenticated HTTP and the Mac client remain pending. See
+  authenticated HTTP is implemented in the current branch; the Mac client
+  remains pending. See
   `.ai/decisions/media-intake-storage.md`.
 - partial: local staging applies 0640 media-file and 0750 directory modes after
   checksum verification. KoeFrame owns writable directories and the configured

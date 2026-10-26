@@ -58,6 +58,11 @@ config :koe_frame,
       if(config_env() == :prod, do: "production", else: "development"),
   environment: config_env()
 
+config :defdo_auth_client, Defdo.AuthClient.SDK,
+  site: System.get_env("DEFDO_AUTH_SITE"),
+  internal_api_token: {:system, "DEFDO_AUTH_INTERNAL_TOKEN"},
+  internal_api_hmac: true
+
 if config_env() == :dev and System.get_env("KOE_FRAME_DEV_TLS") in ["true", "1"] do
   port = String.to_integer(System.get_env("PORT", "4000"))
   certfile = System.fetch_env!("KOE_FRAME_DEV_TLS_CERT")

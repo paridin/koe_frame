@@ -36,6 +36,10 @@
   generated intake directory; clients cannot select absolute server paths.
 - KoeFrame's versioned migrator owns the upload-session schema. `defdo_tenant`
   owns tenant identity and supplies the process-context boundary.
+- An authenticated Tus API now gates upload creation, offset inspection,
+  bounded chunk writes, and explicit finalization on the exact
+  `koe_frame:media:write` scope. Tenant context comes only from credential
+  introspection and is restored around each upload context call.
 
 ## Use when
 
@@ -50,13 +54,16 @@
 
 ## Not provided yet
 
-- No upload HTTP route is registered. These modules must not be called from an
-  unauthenticated client boundary.
-- There is no Mac directory scanner/client, Tus endpoint, batch-completion
-  action, retention worker, or Sonarr import planner yet.
-- The transcript preview is a command/RPC experiment, not a saved review
-  screen. KoeFrame does not yet translate cues through the Hub, retain
-  transcript history, or place media in its final library path.
+- No Mac folder uploader, upload batch-completion action, retention worker, or
+  Sonarr import planner exists.
+- No review screen or extraction-choice UI exists; the transcript preview is a
+  command/RPC experiment.
+- KoeFrame does not yet translate subtitle cues through the Hub or retain
+  transcript history.
+- KoeFrame does not yet place media in its final library path.
+- HTTP Tus route code is present in the current branch, but dependency-backed
+  focused tests (8) and full suite (101) pass locally. Authenticated runtime
+  smoke, IdP scope grant, and production secret injection remain unverified.
 - The runtime image must provide compatible `ffprobe` and `ffmpeg` binaries;
   Ffmpex/Rambo do not bundle them. Image and NAS runtime readiness must be
   verified separately from these application modules.
@@ -65,9 +72,9 @@
 
 - KoeFrame media workflows use the adapter instead of building FFprobe/FFmpeg
   process commands in controllers, LiveViews, or domain workflows.
-- Nothing in the operator workflow replaces `rsync` yet. Existing rsync usage
-  remains the practical transfer path until the authenticated API and client
-  are delivered.
+- The HTTP Tus API exists, but nothing in the operator workflow replaces
+  `rsync` until the Mac client is delivered and a real interrupted directory
+  transfer is verified.
 - `defdo_uploader` supplies the storage-adapter boundary, not the resumable
   media-session protocol; KoeFrame owns that protocol and its NAS adapter.
 - This does not replace Subtitler's generic cue contract or KoeFrame's future

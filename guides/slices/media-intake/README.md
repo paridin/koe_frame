@@ -10,8 +10,9 @@ contract.
 1. `01-session-and-local-staging.md` — implemented in the current working tree;
    session persistence, bounded chunks, checksum finalization, safe relative
    paths, and server-owned staging permissions.
-2. `02-authenticated-tus-api.md` — pending resolution of the private
-   `defdo_auth_client` dependency and registration of the narrow tenant scope.
+2. `02-authenticated-tus-api.md` — authenticated Tus API using credential
+   introspection and the narrow tenant scope; implementation and local tests
+   pass, while runtime smoke and IdP grant remain pending.
 3. `03-mac-folder-client.md` — pending the authenticated API; enumerates a
    folder, sends a manifest, resumes at the server offset, and reports progress.
 4. `99-verification.md` — durable gates for P-01 as the HTTP API and client

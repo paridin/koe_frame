@@ -27,9 +27,12 @@ The final publish uses the
 `Defdo.Uploader.Adapter` contract from `defdo_uploader`; KoeFrame supplies the
 filesystem adapter because it owns the NAS path and permission policy.
 
-The HTTP/Tus endpoint, authentication edge, and Mac client are still pending;
-the current context is not exposed as an unauthenticated route. P-01 is not
-complete until a client can transfer and resume a real large directory tree.
+An authenticated Tus HTTP API now fronts the server-side upload context. It
+requires Defdo credential introspection and the exact `koe_frame:media:write`
+scope; tenant comes from introspection, never request metadata. Runtime must
+receive `DEFDO_AUTH_INTERNAL_TOKEN` through its secret provider. The
+IdP scope grant, Mac client, extraction-choice UI, and real interrupted
+directory transfer remain pending; P-01 is not complete yet.
 
 ## Development
 
@@ -60,6 +63,11 @@ when it is absent; its parent must already exist. An existing root must already
 have mode `0750` and the configured media group. KoeFrame rejects an
 unprovisioned root without changing its permissions. Use a dedicated staging
 directory, separate from the shared writable media-library directory.
+
+The authenticated media API also requires `DEFDO_AUTH_SITE` and the server-side
+`DEFDO_AUTH_INTERNAL_TOKEN` at runtime. Register `koe_frame:media:write` in
+the IdP scope catalog and grant it only to the KoeFrame transfer client before
+enabling a client.
 
 ## Transcript review preview
 

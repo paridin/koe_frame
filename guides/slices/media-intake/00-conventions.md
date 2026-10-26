@@ -10,8 +10,8 @@ Read this before implementing any slice in this set.
 
 - Work only in `koe_frame`; run Mix commands from that directory.
 - `mix.exs` resolves Defdo packages from Hex. Do not add a path dependency to a
-  sibling repository. The private `defdo_auth_client` package is not currently
-  resolved by KoeFrame; resolve its package access before running slice 02.
+  sibling repository. `defdo_auth_client` is declared in `mix.exs` and locked
+  at 0.12.0; its SDK provides credential introspection.
 - Do not run `mix deps.get` from a slice. The runner has no public network;
   resolve required packages before the slice starts and verify the intended
   versions in `mix.lock`.
@@ -64,8 +64,10 @@ Read this before implementing any slice in this set.
 - `uses: defdo_uploader@0.3.0` — shared storage-adapter contract. The package
   does not own KoeFrame's resumable session/chunk protocol; the application
   supplies a filesystem adapter for its NAS path and permissions.
-- `gap: upload HTTP authentication — use defdo_auth_client after its package
-  resolves; register `koe_frame:media:write` in the tenant's auth scope catalog.`
+- `uses: defdo_auth_client@0.12.0` — generic credential introspection; server
+  runtime must receive `DEFDO_AUTH_INTERNAL_TOKEN` from the secret provider.
+- `gap: upload authorization data — register `koe_frame:media:write` in the
+  IdP tenant scope catalog and grant it only to the KoeFrame client.`
 
 ## Tests
 

@@ -16,6 +16,11 @@ defmodule Defdo.KoeFrameWeb.Router do
     plug :accepts, ["json"]
   end
 
+  pipeline :media_api do
+    plug :accepts, ["json"]
+    plug Defdo.KoeFrameWeb.Plug.MediaCredential
+  end
+
   pipeline :oauth do
     plug :accepts, ["html"]
     plug Defdo.KoeFrameWeb.Plug.OAuthConfig
@@ -38,10 +43,14 @@ defmodule Defdo.KoeFrameWeb.Router do
     get "/auth/callback", Plug.OAuthCallback, []
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", Defdo.KoeFrameWeb do
-  #   pipe_through :api
-  # end
+  scope "/api/v1/media", Defdo.KoeFrameWeb do
+    pipe_through :media_api
+
+    post "/intakes/:intake_id/uploads", MediaUploadsController, :create
+    get "/uploads/:id", MediaUploadsController, :head
+    patch "/uploads/:id", MediaUploadsController, :patch
+    post "/uploads/:id/finalize", MediaUploadsController, :finalize
+  end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:koe_frame, :dev_routes) do
