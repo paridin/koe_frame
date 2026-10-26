@@ -4,12 +4,80 @@ defmodule Defdo.KoeFrameWeb.Layouts do
   used by your application.
   """
   use Defdo.KoeFrameWeb, :html
+  import Defdo.Theme.Components.Admin.PageShell, only: [admin_page_shell: 1]
+  import Defdo.Theme.Components.Admin.NavGroup, only: [nav_group: 1]
 
   # Embed all files in layouts/* within this module.
   # The default root.html.heex file contains the HTML
   # skeleton of your application, namely HTML headers
   # and other static content.
   embed_templates "layouts/*"
+
+  attr :flash, :map, required: true
+  attr :page_title, :string, required: true
+  attr :subtitle, :string, default: nil
+  attr :current_page, :atom, values: [:system, :speech_models], required: true
+  slot :actions
+  slot :inner_block, required: true
+
+  def admin_shell(assigns) do
+    ~H"""
+    <.admin_page_shell
+      id="koe-frame-admin-shell"
+      title={@page_title}
+      subtitle={@subtitle}
+      nav_label={gettext("Admin navigation")}
+      nav_trigger_label={gettext("Open admin navigation")}
+      container={false}
+    >
+      <:logo>
+        <.link
+          navigate="/admin"
+          class="flex items-center gap-3"
+          aria-label={gettext("KoeFrame admin home")}
+        >
+          <span class="flex size-9 shrink-0 items-center justify-center rounded-box border border-base-content/10 bg-base-200 text-xs font-semibold tracking-tight">
+            KF
+          </span>
+          <span class="text-sm font-semibold tracking-tight">KoeFrame</span>
+        </.link>
+      </:logo>
+
+      <:nav>
+        <.nav_group id="koe-frame-admin-navigation" label={gettext("Workspace")} open>
+          <:item>
+            <.link
+              navigate="/admin"
+              aria-current={if @current_page == :system, do: "page", else: nil}
+              class={admin_nav_class(@current_page == :system)}
+            >
+              <.icon name="hero-heart" class="size-4 shrink-0" />
+              <span>{gettext("System status")}</span>
+            </.link>
+          </:item>
+          <:item>
+            <.link
+              navigate="/admin/speech-models"
+              aria-current={if @current_page == :speech_models, do: "page", else: nil}
+              class={admin_nav_class(@current_page == :speech_models)}
+            >
+              <.icon name="hero-cpu-chip" class="size-4 shrink-0" />
+              <span>{gettext("Speech models")}</span>
+            </.link>
+          </:item>
+        </.nav_group>
+      </:nav>
+
+      <:actions>{render_slot(@actions)}</:actions>
+
+      <.flash_group flash={@flash} />
+      {render_slot(@inner_block)}
+    </.admin_page_shell>
+    """
+  end
+
+  defp admin_nav_class(true), do: "btn btn-ghost btn-sm justify-start active"
+  defp admin_nav_class(false), do: "btn btn-ghost btn-sm justify-start"
 
   @doc """
   Renders your app layout.

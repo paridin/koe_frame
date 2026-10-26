@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0-dev.9 — 2026-10-26
+
+### Changed
+
+- Use the shared responsive admin shell for system status and speech models.
+- Centralize admin LiveView state transitions and keep async effects outside
+  the pure update functions.
+- Update Bandit to 1.14.0 to clear reported security advisories.
+
 ## 0.1.0-dev.8 — 2026-10-26
 
 ### Added

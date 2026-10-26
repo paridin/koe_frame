@@ -11,104 +11,98 @@ defmodule Defdo.KoeFrameWeb.Admin.SystemLive do
 
   @async_timeout 20_000
 
+  defmodule Model do
+    @moduledoc false
+    defstruct diagnostics: :loading, checked_at: nil, admin_scope: nil, current_user: nil
+  end
+
   @impl true
   def mount(_params, _session, socket) do
-    socket =
-      socket
-      |> assign(:checks, [])
-      |> assign(:checked_at, nil)
-      |> assign(:loading?, true)
-      |> assign(:admin_scope, Authorization.admin_scope())
+    model = %Model{
+      admin_scope: Authorization.admin_scope(),
+      current_user: socket.assigns[:current_user]
+    }
+
+    socket = assign(socket, :model, model)
 
     if connected?(socket) do
-      {:ok, start_diagnostics(socket)}
+      {:ok, run_cmds(socket, [:load_diagnostics])}
     else
       {:ok, socket}
     end
   end
 
   @impl true
-  def handle_event("refresh", _params, socket) do
-    {:noreply, start_diagnostics(socket)}
+  def handle_event(name, params, socket) when is_binary(name) and is_map(params) do
+    case parse_msg(name, params) do
+      {:ok, msg} -> {:noreply, dispatch(msg, socket)}
+      :error -> {:noreply, socket}
+    end
+  end
+
+  def handle_event(name, _params, socket) do
+    require Logger
+    Logger.debug("ignored admin system event #{inspect(name)}")
+    {:noreply, socket}
   end
 
   @impl true
   def handle_async(:identity_diagnostics, {:ok, result}, socket) do
-    {:noreply,
-     socket
-     |> assign(:checks, result.checks)
-     |> assign(:checked_at, result.checked_at)
-     |> assign(:loading?, false)}
+    {:noreply, dispatch({:diagnostics_loaded, {:ok, result}}, socket)}
   end
 
   def handle_async(:identity_diagnostics, {:exit, _reason}, socket) do
-    result = IdentityDiagnostics.unavailable_result()
-
-    {:noreply,
-     socket
-     |> assign(:checks, result.checks)
-     |> assign(:checked_at, result.checked_at)
-     |> assign(:loading?, false)}
+    {:noreply, dispatch({:diagnostics_loaded, :error}, socket)}
   end
 
   @impl true
   def render(assigns) do
     ~H"""
-    <main class="min-h-screen bg-base-200 text-base-content">
-      <.page_header
-        title="System status"
-        subtitle="Check the identity services behind this KoeFrame instance."
-        container={false}
-        surface="bg-base-100"
-        class="border-b border-base-300"
-      >
-        <:meta>
-          <span>KoeFrame</span>
-          <span aria-hidden="true">/</span>
-          <span>Admin</span>
-        </:meta>
-        <:actions>
-          <a href="/" class="btn btn-ghost btn-sm">Home</a>
-          <.link navigate="/admin/speech-models" class="btn btn-ghost btn-sm">Speech models</.link>
-          <button
-            id="refresh-identity-diagnostics"
-            type="button"
-            class="btn btn-primary btn-sm"
-            phx-click="refresh"
-            disabled={@loading?}
-          >
-            <.icon :if={@loading?} name="hero-arrow-path" class="size-4 animate-spin" />
-            {if @loading?, do: "Checking…", else: "Check again"}
-          </button>
-        </:actions>
-      </.page_header>
+    <Layouts.admin_shell
+      flash={@flash}
+      page_title="System status"
+      subtitle="Check the identity services behind this KoeFrame instance."
+      current_page={:system}
+    >
+      <:actions>
+        <button
+          id="refresh-identity-diagnostics"
+          type="button"
+          class="btn btn-primary btn-sm"
+          phx-click="refresh"
+          disabled={loading?(@model)}
+        >
+          <.icon :if={loading?(@model)} name="hero-arrow-path" class="size-4 animate-spin" />
+          {if loading?(@model), do: "Checking…", else: "Check again"}
+        </button>
+      </:actions>
 
-      <div class="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+      <div class="w-full max-w-7xl space-y-6">
         <section class="flex flex-col gap-3 border-b border-base-300 pb-5 sm:flex-row sm:items-end sm:justify-between">
           <div class="min-w-0">
             <p class="text-sm text-base-content/65">Signed in as</p>
             <h2 class="break-words text-lg font-semibold">
-              {user_label(@current_user)}
+              {user_label(@model.current_user)}
             </h2>
           </div>
           <div class="flex flex-wrap items-center gap-3">
             <.badge
-              :if={!@loading?}
-              variant={overall_variant(@checks)}
-              label={overall_label(@checks)}
+              :if={!loading?(@model)}
+              variant={overall_variant(checks(@model))}
+              label={overall_label(checks(@model))}
             />
             <time
-              :if={@checked_at}
+              :if={@model.checked_at}
               class="font-mono text-xs text-base-content/60"
-              datetime={DateTime.to_iso8601(@checked_at)}
+              datetime={DateTime.to_iso8601(@model.checked_at)}
             >
-              Checked {format_time(@checked_at)}
+              Checked {format_time(@model.checked_at)}
             </time>
           </div>
         </section>
 
         <div
-          :if={@loading?}
+          :if={loading?(@model)}
           id="identity-diagnostics-loading"
           class="flex items-center gap-3 py-8 text-sm text-base-content/70"
           role="status"
@@ -118,13 +112,13 @@ defmodule Defdo.KoeFrameWeb.Admin.SystemLive do
         </div>
 
         <div
-          :if={!@loading?}
+          :if={!loading?(@model)}
           id="identity-diagnostics"
           class="grid grid-cols-1 gap-3 md:grid-cols-2"
           aria-live="polite"
         >
           <.panel
-            :for={check <- @checks}
+            :for={check <- checks(@model)}
             id={"identity-check-#{check.id}"}
             scroll={false}
             class="h-full"
@@ -148,7 +142,7 @@ defmodule Defdo.KoeFrameWeb.Admin.SystemLive do
             </div>
           </:header>
           <p class="mt-3 text-sm leading-6 text-base-content/75">
-            Admin access verified with an active IdP token carrying {@admin_scope} for this tenant.
+            Admin access verified with an active IdP token carrying {@model.admin_scope} for this tenant.
           </p>
         </.panel>
 
@@ -158,24 +152,51 @@ defmodule Defdo.KoeFrameWeb.Admin.SystemLive do
           </p>
         </.alert>
       </div>
-    </main>
+    </Layouts.admin_shell>
     """
   end
 
-  defp start_diagnostics(socket) do
+  def parse_msg("refresh", params) when is_map(params), do: {:ok, :refresh}
+  def parse_msg(_name, _params), do: :error
+
+  def update(:refresh, %Model{diagnostics: :loading} = model), do: {model, []}
+  def update(:refresh, model), do: {%{model | diagnostics: :loading}, [:load_diagnostics]}
+
+  def update({:diagnostics_loaded, {:ok, result}}, model) when is_map(result) do
+    {%{model | diagnostics: {:ready, result.checks}, checked_at: result.checked_at}, []}
+  end
+
+  def update({:diagnostics_loaded, _error}, model) do
+    result = IdentityDiagnostics.unavailable_result()
+    {%{model | diagnostics: {:ready, result.checks}, checked_at: result.checked_at}, []}
+  end
+
+  def update(_message, model), do: {model, []}
+
+  defp dispatch(msg, socket) do
+    {model, cmds} = update(msg, socket.assigns.model)
+    socket |> assign(:model, model) |> run_cmds(cmds)
+  end
+
+  defp run_cmds(socket, []), do: socket
+
+  defp run_cmds(socket, [:load_diagnostics | rest]) do
     tenant_id = socket.assigns.current_tenant_id
     host = socket.assigns.admin_host
-
     runner = Application.get_env(:koe_frame, :identity_diagnostics_runner, IdentityDiagnostics)
 
-    socket
-    |> assign(:loading?, true)
-    |> start_async(
-      :identity_diagnostics,
-      fn -> runner.run(tenant_id, host) end,
-      timeout: @async_timeout
-    )
+    socket =
+      start_async(socket, :identity_diagnostics, fn -> runner.run(tenant_id, host) end,
+        timeout: @async_timeout
+      )
+
+    run_cmds(socket, rest)
   end
+
+  defp loading?(%Model{diagnostics: :loading}), do: true
+  defp loading?(%Model{}), do: false
+  defp checks(%Model{diagnostics: {:ready, checks}}), do: checks
+  defp checks(%Model{}), do: []
 
   defp user_label(%{name: name}) when is_binary(name) and name != "", do: name
   defp user_label(%{email: email}) when is_binary(email) and email != "", do: email

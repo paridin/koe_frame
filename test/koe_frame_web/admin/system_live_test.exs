@@ -4,6 +4,7 @@ defmodule Defdo.KoeFrameWeb.Admin.SystemLiveTest do
   import Phoenix.LiveViewTest
 
   alias Defdo.KoeFrame.Admin.SessionAuthenticatorFake
+  alias Defdo.KoeFrameWeb.Admin.SystemLive
 
   @user_token "admin-liveview-test-key"
 
@@ -75,6 +76,9 @@ defmodule Defdo.KoeFrameWeb.Admin.SystemLiveTest do
     html = render_async(view)
 
     assert html =~ "KoeFrame Admin"
+    assert html =~ "koe-frame-admin-shell"
+    assert html =~ "Admin navigation"
+    assert html =~ "Speech models"
     assert html =~ "Admin access verified"
     assert html =~ "koe-frame:admin"
     assert html =~ "Test identity connection"
@@ -87,6 +91,28 @@ defmodule Defdo.KoeFrameWeb.Admin.SystemLiveTest do
 
     assert render_async(view) =~ "The test runner completed."
     assert_received {:identity_diagnostics_ran, "tenant-test", "koe-frame.example.test"}
+  end
+
+  test "diagnostics model parses only known messages and keeps refresh effects pure" do
+    assert SystemLive.parse_msg("refresh", %{}) == {:ok, :refresh}
+    assert SystemLive.parse_msg("refresh", nil) == :error
+    assert SystemLive.parse_msg("forged", %{}) == :error
+
+    loading = %SystemLive.Model{diagnostics: :loading}
+    assert SystemLive.update(:refresh, loading) == {loading, []}
+
+    ready = %SystemLive.Model{diagnostics: {:ready, []}}
+
+    assert SystemLive.update(:refresh, ready) ==
+             {%{ready | diagnostics: :loading}, [:load_diagnostics]}
+
+    result = %{checks: [%{id: "oidc", status: :ok}], checked_at: DateTime.utc_now()}
+
+    assert {%SystemLive.Model{diagnostics: {:ready, checks}, checked_at: checked_at}, []} =
+             SystemLive.update({:diagnostics_loaded, {:ok, result}}, loading)
+
+    assert checks == result.checks
+    assert checked_at == result.checked_at
   end
 
   test "redirects an authenticated user without the KoeFrame admin scope to a forbidden page", %{

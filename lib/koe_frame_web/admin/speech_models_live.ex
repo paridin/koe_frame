@@ -11,6 +11,23 @@ defmodule Defdo.KoeFrameWeb.Admin.SpeechModelsLive do
   @max_upload_bytes 25_000_000
   @download_timeout 1_800_000
   @comparison_timeout 7_500_000
+  @empty_inventory %{
+    installed: [],
+    candidates: [],
+    experimental_candidates: [],
+    experimental_installed: [],
+    default_model: nil,
+    speaches_available?: false
+  }
+
+  defmodule Model do
+    @moduledoc false
+    defstruct inventory: %{},
+              inventory_status: :loading,
+              download: :idle,
+              comparison: :idle,
+              feedback: nil
+  end
 
   @impl true
   def mount(_params, _session, socket) do
@@ -22,171 +39,296 @@ defmodule Defdo.KoeFrameWeb.Admin.SpeechModelsLive do
         max_file_size: @max_upload_bytes,
         auto_upload: true
       )
-      |> assign(:inventory, %{
-        installed: [],
-        candidates: [],
-        experimental_candidates: [],
-        experimental_installed: [],
-        default_model: nil
-      })
-      |> assign(:inventory_loading?, true)
-      |> assign(:inventory_error?, false)
-      |> assign(:speaches_unavailable?, false)
-      |> assign(:downloading_model_id, nil)
-      |> assign(:comparing?, false)
-      |> assign(:comparison_results, [])
-      |> assign(:comparison_status, nil)
+      |> assign(:model, %Model{inventory: @empty_inventory})
 
-    if connected?(socket), do: {:ok, start_inventory(socket)}, else: {:ok, socket}
+    if connected?(socket), do: {:ok, run_cmds(socket, [:load_inventory])}, else: {:ok, socket}
   end
 
   @impl true
-  def handle_event("refresh", _params, socket), do: {:noreply, start_inventory(socket)}
-
-  def handle_event("download", %{"model_id" => model_id}, socket) do
-    if socket.assigns.downloading_model_id do
-      {:noreply, socket}
-    else
-      {:noreply,
-       socket
-       |> assign(:downloading_model_id, model_id)
-       |> assign(:comparison_status, nil)
-       |> start_async(:download_model, fn -> SpeechModels.download(model_id) end,
-         timeout: @download_timeout
-       )}
+  def handle_event(name, params, socket) when is_binary(name) and is_map(params) do
+    case parse_msg(name, params) do
+      {:ok, msg} -> {:noreply, dispatch(msg, socket)}
+      :error -> {:noreply, socket}
     end
   end
 
-  def handle_event("validate_compare", _params, socket), do: {:noreply, socket}
+  def handle_event(name, _params, socket) do
+    require Logger
+    Logger.debug("ignored speech models event #{inspect(name)}")
+    {:noreply, socket}
+  end
 
-  def handle_event("compare", %{"comparison" => params}, socket) do
+  @impl true
+  def handle_async(:inventory, {:ok, result}, socket) do
+    {:noreply, dispatch({:inventory_loaded, result}, socket)}
+  end
+
+  def handle_async(:inventory, _result, socket),
+    do: {:noreply, dispatch({:inventory_loaded, :error}, socket)}
+
+  def handle_async(:download_model, {:ok, result}, socket) do
+    {:noreply, dispatch({:download_finished, result}, socket)}
+  end
+
+  def handle_async(:download_model, _result, socket),
+    do: {:noreply, dispatch({:download_finished, :error}, socket)}
+
+  def handle_async(:compare_models, {:ok, result}, socket) do
+    {:noreply, dispatch({:comparison_finished, result}, socket)}
+  end
+
+  def handle_async(:compare_models, _result, socket),
+    do: {:noreply, dispatch({:comparison_finished, :error}, socket)}
+
+  def handle_async(name, _result, socket) do
+    require Logger
+    Logger.debug("ignored speech models async result #{inspect(name)}")
+    {:noreply, socket}
+  end
+
+  def parse_msg("refresh", params) when is_map(params), do: {:ok, :refresh}
+  def parse_msg("validate_compare", params) when is_map(params), do: {:ok, :validate_compare}
+
+  def parse_msg("download", %{"model_id" => model_id})
+      when is_binary(model_id) and byte_size(model_id) in 1..300,
+      do: {:ok, {:download, model_id}}
+
+  def parse_msg("compare", %{"comparison" => params}) when is_map(params) do
     model_ids = Map.get(params, "model_ids", [])
-    reference = params |> Map.get("reference", "") |> String.trim() |> empty_to_nil()
+    reference = Map.get(params, "reference", "")
 
-    case take_uploaded_clip(socket) do
-      {:ok, path} ->
-        socket =
-          socket
-          |> assign(:comparing?, true)
-          |> assign(:comparison_results, [])
-          |> assign(:comparison_status, nil)
-          |> start_async(
-            :compare_models,
-            fn ->
-              try do
-                SpeechModels.compare(path, model_ids, reference)
-              after
-                File.rm(path)
-              end
-            end,
-            timeout: @comparison_timeout
-          )
-
-        {:noreply, socket}
-
-      {:error, message} ->
-        {:noreply, assign(socket, :comparison_status, message)}
+    if is_list(model_ids) and Enum.all?(model_ids, &is_binary/1) and is_binary(reference) do
+      {:ok, {:compare, model_ids, reference |> String.trim() |> empty_to_nil()}}
+    else
+      :error
     end
   end
 
-  def handle_event("compare", _params, socket),
-    do: {:noreply, assign(socket, :comparison_status, "Select a clip and two to four models.")}
+  def parse_msg(_name, _params), do: :error
 
-  @impl true
-  def handle_async(:inventory, {:ok, {:ok, inventory}}, socket) do
-    {:noreply,
-     socket
-     |> assign(:inventory, inventory)
-     |> assign(:inventory_loading?, false)
-     |> assign(:inventory_error?, false)
-     |> assign(:speaches_unavailable?, not inventory.speaches_available?)}
+  def update(:refresh, %Model{inventory_status: :loading} = model), do: {model, []}
+  def update(:refresh, model), do: {%{model | inventory_status: :loading}, [:load_inventory]}
+  def update(:validate_compare, model), do: {model, []}
+
+  def update({:inventory_loaded, {:ok, inventory}}, model) when is_map(inventory) do
+    if valid_inventory?(inventory) do
+      {%{model | inventory: Map.merge(@empty_inventory, inventory), inventory_status: :ready}, []}
+    else
+      {%{model | inventory_status: :error}, []}
+    end
   end
 
-  def handle_async(:inventory, _result, socket) do
-    {:noreply,
-     socket
-     |> assign(:inventory_loading?, false)
-     |> assign(:inventory_error?, true)
-     |> assign(:speaches_unavailable?, false)}
+  def update({:inventory_loaded, _result}, model),
+    do: {%{model | inventory_status: :error}, []}
+
+  def update({:download, model_id}, %Model{download: :idle} = model) do
+    if installable_model?(model.inventory, model_id) do
+      {%{model | download: {:running, model_id}, feedback: nil}, [{:download, model_id}]}
+    else
+      {model, []}
+    end
   end
 
-  def handle_async(:download_model, {:ok, :ok}, socket) do
-    {:noreply,
-     socket
-     |> assign(:downloading_model_id, nil)
-     |> assign(:comparison_status, "Model download completed. Checking the installed inventory…")
-     |> start_inventory()}
+  def update({:download, _model_id}, model), do: {model, []}
+
+  def update({:download_finished, :ok}, %Model{download: {:running, _model_id}} = model) do
+    {%{
+       model
+       | download: :idle,
+         inventory_status: :loading,
+         feedback: {:notice, "Model download completed. Checking the installed inventory…"}
+     }, [:load_inventory]}
   end
 
-  def handle_async(:download_model, _result, socket) do
-    {:noreply,
-     socket
-     |> assign(:downloading_model_id, nil)
-     |> assign(
-       :comparison_status,
-       "The model provider could not install that model. Check its runtime configuration and try again."
-     )
-     |> start_inventory()}
+  def update({:download_finished, _result}, %Model{download: {:running, _model_id}} = model) do
+    {%{
+       model
+       | download: :idle,
+         inventory_status: :loading,
+         feedback:
+           {:warning,
+            "The model provider could not install that model. Check its runtime configuration and try again."}
+     }, [:load_inventory]}
   end
 
-  def handle_async(:compare_models, {:ok, {:ok, results}}, socket) do
-    {:noreply,
-     socket
-     |> assign(:comparing?, false)
-     |> assign(:comparison_results, results)
-     |> assign(:comparison_status, nil)}
+  def update({:download_finished, _result}, model), do: {model, []}
+
+  def update({:compare, _model_ids, _reference}, %Model{comparison: :running} = model),
+    do: {model, []}
+
+  def update({:compare, model_ids, reference}, model) do
+    if valid_selection?(model.inventory, model_ids) do
+      {%{model | comparison: :running, feedback: nil}, [{:consume_clip, model_ids, reference}]}
+    else
+      {%{model | feedback: {:warning, "Select a clip and two to four installed models."}}, []}
+    end
   end
 
-  def handle_async(:compare_models, {:ok, {:error, reason}}, socket) do
-    {:noreply,
-     socket
-     |> assign(:comparing?, false)
-     |> assign(:comparison_status, comparison_error(reason))}
+  def update(
+        {:clip_ready, {:ok, path}, model_ids, reference},
+        %Model{comparison: :running} = model
+      ),
+      do: {model, [{:compare_models, path, model_ids, reference}]}
+
+  def update({:clip_ready, {:error, message}}, %Model{comparison: :running} = model),
+    do: {%{model | comparison: :idle, feedback: {:warning, message}}, []}
+
+  def update({:comparison_finished, {:ok, results}}, %Model{comparison: :running} = model)
+      when is_list(results),
+      do: {%{model | comparison: {:ready, results}}, []}
+
+  def update({:comparison_finished, {:error, reason}}, %Model{comparison: :running} = model),
+    do: {%{model | comparison: {:error, comparison_error(reason)}}, []}
+
+  def update({:comparison_finished, _result}, %Model{comparison: :running} = model) do
+    {%{
+       model
+       | comparison:
+           {:error,
+            "The comparison could not finish. Check the selected provider runtimes and retry."}
+     }, []}
   end
 
-  def handle_async(:compare_models, _result, socket) do
-    {:noreply,
-     socket
-     |> assign(:comparing?, false)
-     |> assign(
-       :comparison_status,
-       "The comparison could not finish. Check the selected provider runtimes and retry."
-     )}
+  def update(_message, model), do: {model, []}
+
+  defp dispatch(msg, socket) do
+    {model, cmds} = update(msg, socket.assigns.model)
+    socket |> assign(:model, model) |> run_cmds(cmds)
+  end
+
+  defp run_cmds(socket, []), do: socket
+
+  defp run_cmds(socket, [:load_inventory | rest]) do
+    socket = start_async(socket, :inventory, &SpeechModels.inventory/0, timeout: 30_000)
+    run_cmds(socket, rest)
+  end
+
+  defp run_cmds(socket, [{:download, model_id} | rest]) do
+    socket =
+      start_async(socket, :download_model, fn -> SpeechModels.download(model_id) end,
+        timeout: @download_timeout
+      )
+
+    run_cmds(socket, rest)
+  end
+
+  defp run_cmds(socket, [{:consume_clip, model_ids, reference} | rest]) do
+    result = take_uploaded_clip(socket)
+    socket = dispatch({:clip_ready, result, model_ids, reference}, socket)
+    run_cmds(socket, rest)
+  end
+
+  defp run_cmds(socket, [{:compare_models, path, model_ids, reference} | rest]) do
+    socket =
+      start_async(
+        socket,
+        :compare_models,
+        fn ->
+          try do
+            SpeechModels.compare(path, model_ids, reference)
+          after
+            File.rm(path)
+          end
+        end,
+        timeout: @comparison_timeout
+      )
+
+    run_cmds(socket, rest)
+  end
+
+  defp inventory_loading?(%Model{inventory_status: :loading}), do: true
+  defp inventory_loading?(%Model{}), do: false
+  defp inventory_error?(%Model{inventory_status: :error}), do: true
+  defp inventory_error?(%Model{}), do: false
+
+  defp speaches_unavailable?(%Model{
+         inventory_status: :ready,
+         inventory: %{speaches_available?: false}
+       }),
+       do: true
+
+  defp speaches_unavailable?(%Model{}), do: false
+  defp downloading_model_id(%Model{download: {:running, model_id}}), do: model_id
+  defp downloading_model_id(%Model{}), do: nil
+  defp comparing?(%Model{comparison: :running}), do: true
+  defp comparing?(%Model{}), do: false
+  defp comparison_results(%Model{comparison: {:ready, results}}), do: results
+  defp comparison_results(%Model{}), do: []
+  defp comparison_message(%Model{feedback: {_kind, message}}), do: message
+  defp comparison_message(%Model{comparison: {:error, message}}), do: message
+  defp comparison_message(%Model{}), do: nil
+
+  defp installable_model?(inventory, model_id) do
+    Enum.any?(Map.get(inventory, :candidates, []), fn candidate ->
+      is_map(candidate) and Map.get(candidate, :id) == model_id and
+        not Map.get(candidate, :installed?, false)
+    end) or
+      Enum.any?(Map.get(inventory, :experimental_candidates, []), fn candidate ->
+        is_map(candidate) and Map.get(candidate, :key) == model_id and
+          not Map.get(candidate, :installed?, false) and
+          Map.get(candidate, :installable?, false)
+      end)
+  end
+
+  defp valid_selection?(inventory, model_ids) when is_list(model_ids) do
+    available =
+      Enum.flat_map(
+        Map.get(inventory, :installed, []) ++ Map.get(inventory, :experimental_installed, []),
+        fn model ->
+          if is_map(model) do
+            [Map.get(model, :key)] ++
+              if(Map.get(model, :provider) == :speaches, do: [Map.get(model, :id)], else: [])
+          else
+            []
+          end
+        end
+      )
+
+    length(model_ids) in 2..4 and length(Enum.uniq(model_ids)) == length(model_ids) and
+      Enum.all?(model_ids, &(&1 in available))
+  end
+
+  defp valid_selection?(_inventory, _model_ids), do: false
+
+  defp valid_inventory?(inventory) do
+    lists_valid? =
+      Enum.all?(
+        [:installed, :candidates, :experimental_candidates, :experimental_installed],
+        fn key ->
+          case Map.get(inventory, key) do
+            items when is_list(items) -> Enum.all?(items, &is_map/1)
+            _other -> false
+          end
+        end
+      )
+
+    lists_valid? and is_boolean(Map.get(inventory, :speaches_available?))
   end
 
   @impl true
   def render(assigns) do
     ~H"""
-    <main class="min-h-screen bg-base-200 text-base-content">
-      <.page_header
-        title="Speech model lab"
-        subtitle="Review Japanese speech models available to this KoeFrame instance."
-        container={false}
-        surface="bg-base-100"
-        class="border-b border-base-300"
-      >
-        <:meta>
-          <span>KoeFrame</span>
-          <span aria-hidden="true">/</span>
-          <span>Admin</span>
-        </:meta>
-        <:actions>
-          <.link navigate="/admin" class="btn btn-ghost btn-sm">System status</.link>
-          <button
-            id="refresh-speech-models"
-            type="button"
-            class="btn btn-primary btn-sm"
-            phx-click="refresh"
-            disabled={@inventory_loading?}
-          >
-            {if @inventory_loading?, do: "Refreshing…", else: "Refresh models"}
-          </button>
-        </:actions>
-      </.page_header>
+    <Layouts.admin_shell
+      flash={@flash}
+      page_title="Speech model lab"
+      subtitle="Review Japanese speech models available to this KoeFrame instance."
+      current_page={:speech_models}
+    >
+      <:actions>
+        <button
+          id="refresh-speech-models"
+          type="button"
+          class="btn btn-primary btn-sm"
+          phx-click="refresh"
+          disabled={inventory_loading?(@model)}
+        >
+          {if inventory_loading?(@model), do: "Refreshing…", else: "Refresh models"}
+        </button>
+      </:actions>
 
-      <div class="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
+      <div class="w-full max-w-7xl space-y-8">
         <div
-          :if={@inventory_loading?}
+          :if={inventory_loading?(@model)}
           id="speech-models-loading"
           class="text-sm text-base-content/70"
           role="status"
@@ -194,13 +336,13 @@ defmodule Defdo.KoeFrameWeb.Admin.SpeechModelsLive do
           Reading installed models and provider catalogs…
         </div>
 
-        <.alert :if={@inventory_error?} variant="error" live={false}>
+        <.alert :if={inventory_error?(@model)} variant="error" live={false}>
           <p>
             The speech model inventory could not be read. Check provider runtimes, then refresh this page.
           </p>
         </.alert>
 
-        <.alert :if={@speaches_unavailable?} variant="warning" live={false}>
+        <.alert :if={speaches_unavailable?(@model)} variant="warning" live={false}>
           <p>
             Speaches is unavailable. Its catalog is hidden; the experimental provider remains available below.
           </p>
@@ -212,21 +354,21 @@ defmodule Defdo.KoeFrameWeb.Admin.SpeechModelsLive do
               <div>
                 <h2 class="text-lg font-semibold">Installed Japanese ASR models</h2>
                 <p class="mt-1 text-sm text-base-content/65">
-                  The current transcription default is <code class="font-mono">{@inventory.default_model || "not configured"}</code>.
+                  The current transcription default is <code class="font-mono">{@model.inventory.default_model || "not configured"}</code>.
                 </p>
               </div>
-              <.badge variant="neutral" label={"#{length(@inventory.installed)} installed"} />
+              <.badge variant="neutral" label={"#{length(@model.inventory.installed)} installed"} />
             </div>
           </:header>
 
           <div
-            :if={@inventory.installed == [] and !@inventory_loading?}
+            :if={@model.inventory.installed == [] and !inventory_loading?(@model)}
             class="py-5 text-sm text-base-content/65"
           >
             No Japanese ASR models are installed yet. Choose a catalog model below.
           </div>
 
-          <div :if={@inventory.installed != []} class="overflow-x-auto">
+          <div :if={@model.inventory.installed != []} class="overflow-x-auto">
             <table class="table table-sm">
               <thead>
                 <tr>
@@ -234,7 +376,10 @@ defmodule Defdo.KoeFrameWeb.Admin.SpeechModelsLive do
                 </tr>
               </thead>
               <tbody>
-                <tr :for={model <- @inventory.installed} id={"installed-model-#{dom_id(model.id)}"}>
+                <tr
+                  :for={model <- @model.inventory.installed}
+                  id={"installed-model-#{dom_id(model.id)}"}
+                >
                   <td class="font-mono text-sm">{model.id}</td>
                   <td>Japanese</td>
                   <td>
@@ -245,10 +390,10 @@ defmodule Defdo.KoeFrameWeb.Admin.SpeechModelsLive do
                         name="comparison[model_ids][]"
                         value={model.key}
                         form="speech-model-comparison"
-                        disabled={@comparing?}
+                        disabled={comparing?(@model)}
                       />
                       <span
-                        :if={model.id == @inventory.default_model}
+                        :if={model.id == @model.inventory.default_model}
                         class="text-xs text-base-content/60"
                       >Current default</span>
                     </label>
@@ -270,7 +415,7 @@ defmodule Defdo.KoeFrameWeb.Admin.SpeechModelsLive do
           </:header>
 
           <div
-            :if={@inventory.candidates == [] and !@inventory_loading?}
+            :if={@model.inventory.candidates == [] and !inventory_loading?(@model)}
             class="py-5 text-sm text-base-content/65"
           >
             No Japanese ASR candidates were returned by Speaches.
@@ -278,7 +423,7 @@ defmodule Defdo.KoeFrameWeb.Admin.SpeechModelsLive do
 
           <ul class="divide-y divide-base-300">
             <li
-              :for={model <- @inventory.candidates}
+              :for={model <- @model.inventory.candidates}
               class="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between"
             >
               <div class="min-w-0">
@@ -296,9 +441,9 @@ defmodule Defdo.KoeFrameWeb.Admin.SpeechModelsLive do
                   class="btn btn-outline btn-sm"
                   phx-click="download"
                   phx-value-model_id={model.id}
-                  disabled={@downloading_model_id != nil}
+                  disabled={downloading_model_id(@model) != nil}
                 >
-                  {if @downloading_model_id == model.id,
+                  {if downloading_model_id(@model) == model.id,
                     do: "Downloading…",
                     else: "Download to Speaches"}
                 </button>
@@ -319,7 +464,7 @@ defmodule Defdo.KoeFrameWeb.Admin.SpeechModelsLive do
 
           <ul class="divide-y divide-base-300">
             <li
-              :for={model <- @inventory.experimental_candidates}
+              :for={model <- @model.inventory.experimental_candidates}
               class="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between"
             >
               <div class="min-w-0">
@@ -353,7 +498,7 @@ defmodule Defdo.KoeFrameWeb.Admin.SpeechModelsLive do
                     name="comparison[model_ids][]"
                     value={model.key}
                     form="speech-model-comparison"
-                    disabled={@comparing?}
+                    disabled={comparing?(@model)}
                   /> Compare
                 </label>
                 <button
@@ -363,9 +508,9 @@ defmodule Defdo.KoeFrameWeb.Admin.SpeechModelsLive do
                   class="btn btn-outline btn-sm"
                   phx-click="download"
                   phx-value-model_id={model.key}
-                  disabled={@downloading_model_id != nil}
+                  disabled={downloading_model_id(@model) != nil}
                 >
-                  {if @downloading_model_id == model.key,
+                  {if downloading_model_id(@model) == model.key,
                     do: "Downloading…",
                     else: "Download to Cactus lab"}
                 </button>
@@ -415,7 +560,7 @@ defmodule Defdo.KoeFrameWeb.Admin.SpeechModelsLive do
                 rows="3"
                 class="textarea textarea-bordered w-full"
                 placeholder="Paste a trusted transcript to calculate character error rate."
-                disabled={@comparing?}
+                disabled={comparing?(@model)}
               ></textarea>
             </div>
 
@@ -423,25 +568,26 @@ defmodule Defdo.KoeFrameWeb.Admin.SpeechModelsLive do
               type="submit"
               class="btn btn-primary"
               disabled={
-                @comparing? or length(@inventory.installed ++ @inventory.experimental_installed) < 2
+                comparing?(@model) or
+                  length(@model.inventory.installed ++ @model.inventory.experimental_installed) < 2
               }
             >
-              {if @comparing?, do: "Comparing models…", else: "Compare selected models"}
+              {if comparing?(@model), do: "Comparing models…", else: "Compare selected models"}
             </button>
           </form>
 
-          <.alert :if={@comparison_status} variant="warning" live={false} class="mt-5">
-            <p>{@comparison_status}</p>
+          <.alert :if={comparison_message(@model)} variant="warning" live={false} class="mt-5">
+            <p>{comparison_message(@model)}</p>
           </.alert>
 
           <div
-            :if={@comparison_results != []}
+            :if={comparison_results(@model) != []}
             id="speech-model-comparison-results"
             class="mt-6 space-y-4"
             aria-live="polite"
           >
             <article
-              :for={result <- @comparison_results}
+              :for={result <- comparison_results(@model)}
               id={"comparison-result-#{dom_id(result.key)}"}
               class="rounded-box border border-base-300 p-4"
             >
@@ -486,19 +632,13 @@ defmodule Defdo.KoeFrameWeb.Admin.SpeechModelsLive do
 
         <.alert variant="info" live={false} class="items-start">
           <p>
-            Downloads only add model files to their configured provider. The current lifecycle is exploration → Japanese benchmark → repeatable quality and latency → human review. A single-clip comparison is exploratory evidence. This page does not promote or activate models, and the transcription default remains {@inventory.default_model ||
+            Downloads only add model files to their configured provider. The current lifecycle is exploration → Japanese benchmark → repeatable quality and latency → human review. A single-clip comparison is exploratory evidence. This page does not promote or activate models, and the transcription default remains {@model.inventory.default_model ||
               "the configured model"}.
           </p>
         </.alert>
       </div>
-    </main>
+    </Layouts.admin_shell>
     """
-  end
-
-  defp start_inventory(socket) do
-    socket
-    |> assign(:inventory_loading?, true)
-    |> start_async(:inventory, &SpeechModels.inventory/0, timeout: 30_000)
   end
 
   defp take_uploaded_clip(socket) do

@@ -2,6 +2,8 @@
    https://tailwindcss.com/docs/configuration */
 
 @import "tailwindcss" source(none);
+/* defdo_theme_components admin_page_shell uses motion-safe animate-in/out utilities. */
+@import "tw-animate-css";
 @import "phoenix-colocated/koe_frame/colocated.css";
 @source "../css";
 @source "../js";

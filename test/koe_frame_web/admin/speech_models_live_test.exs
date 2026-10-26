@@ -4,6 +4,7 @@ defmodule Defdo.KoeFrameWeb.Admin.SpeechModelsLiveTest do
   import Phoenix.LiveViewTest
 
   alias Defdo.KoeFrame.Admin.SessionAuthenticatorFake
+  alias Defdo.KoeFrameWeb.Admin.SpeechModelsLive
 
   @user_token "speech-model-admin-test-key"
   @installed [
@@ -101,6 +102,9 @@ defmodule Defdo.KoeFrameWeb.Admin.SpeechModelsLiveTest do
     html = render_async(view)
 
     assert html =~ "Speech model lab"
+    assert html =~ "koe-frame-admin-shell"
+    assert html =~ "Admin navigation"
+    assert html =~ "System status"
     assert html =~ "Systran/faster-whisper-small"
     assert html =~ "test/faster-whisper-medium"
     assert html =~ "kotoba-tech/kotoba-whisper-v2.0-faster"
@@ -115,6 +119,52 @@ defmodule Defdo.KoeFrameWeb.Admin.SpeechModelsLiveTest do
     assert html =~ "A representative Japanese benchmark set has not been evaluated."
     assert html =~ "The current lifecycle is exploration"
     assert html =~ "Runtime unavailable"
+  end
+
+  test "speech model messages update a closed model and return effects separately" do
+    assert SpeechModelsLive.parse_msg("refresh", %{}) == {:ok, :refresh}
+    assert SpeechModelsLive.parse_msg("refresh", nil) == :error
+    assert SpeechModelsLive.parse_msg("download", %{"model_id" => ["bad"]}) == :error
+
+    assert SpeechModelsLive.parse_msg("compare", %{"comparison" => %{"model_ids" => [1]}}) ==
+             :error
+
+    loading = %SpeechModelsLive.Model{inventory_status: :loading}
+    assert SpeechModelsLive.update(:refresh, loading) == {loading, []}
+
+    ready = %SpeechModelsLive.Model{
+      inventory_status: :ready,
+      inventory: %{
+        installed: [%{key: "speaches:ja-model", id: "ja-model", provider: :speaches}],
+        experimental_installed: [%{key: "cactus:whistle", id: "whistle", provider: :cactus}],
+        candidates: [%{id: "ja-candidate", installed?: false}],
+        experimental_candidates: [%{key: "cactus:new", installed?: false, installable?: true}]
+      }
+    }
+
+    assert {%{inventory_status: :loading}, [:load_inventory]} =
+             SpeechModelsLive.update(:refresh, ready)
+
+    assert {%{download: {:running, "ja-candidate"}, feedback: nil}, [{:download, "ja-candidate"}]} =
+             SpeechModelsLive.update({:download, "ja-candidate"}, ready)
+
+    assert SpeechModelsLive.update({:download, "unlisted"}, ready) == {ready, []}
+
+    assert SpeechModelsLive.update({:download, "anything"}, %SpeechModelsLive.Model{}) ==
+             {%SpeechModelsLive.Model{}, []}
+
+    assert {%{inventory_status: :error}, []} =
+             SpeechModelsLive.update({:inventory_loaded, {:ok, %{}}}, ready)
+
+    assert {%{comparison: :running}, [{:consume_clip, ["ja-model", "cactus:whistle"], nil}]} =
+             SpeechModelsLive.update(
+               {:compare, ["ja-model", "cactus:whistle"], nil},
+               ready
+             )
+
+    assert SpeechModelsLive.update({:compare, ["ja-model", "ja-model"], nil}, ready) ==
+             {%{ready | feedback: {:warning, "Select a clip and two to four installed models."}},
+              []}
   end
 
   test "keeps the experimental provider visible and explains when Speaches is unavailable", %{
