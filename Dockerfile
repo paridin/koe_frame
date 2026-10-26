@@ -8,6 +8,8 @@ FROM hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-ubuntu-${UBUNTU_VERSIO
 
 ARG HEX_ORG_NAME=defdo
 ENV MIX_ENV=prod
+ENV HEX_HTTP_CONCURRENCY=2
+ENV HEX_HTTP_TIMEOUT=120
 
 RUN apt-get update \
     && apt-get install --no-install-recommends -y build-essential ca-certificates cargo curl git nodejs npm \
