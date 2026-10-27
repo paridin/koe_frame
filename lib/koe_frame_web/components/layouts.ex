@@ -28,6 +28,7 @@ defmodule Defdo.KoeFrameWeb.Layouts do
       subtitle={@subtitle}
       nav_label={gettext("Admin navigation")}
       nav_trigger_label={gettext("Open admin navigation")}
+      header={:sticky}
       container={false}
     >
       <:logo>
@@ -36,22 +37,27 @@ defmodule Defdo.KoeFrameWeb.Layouts do
           class="flex items-center gap-3"
           aria-label={gettext("KoeFrame admin home")}
         >
-          <span class="flex size-9 shrink-0 items-center justify-center rounded-box border border-base-content/10 bg-base-200 text-xs font-semibold tracking-tight">
+          <span class="border-l-2 border-primary pl-2 font-mono text-sm font-bold tracking-tight text-base-content">
             KF
           </span>
-          <span class="text-sm font-semibold tracking-tight">KoeFrame</span>
+          <span class="text-sm font-semibold">KoeFrame</span>
         </.link>
       </:logo>
 
       <:nav>
-        <.nav_group id="koe-frame-admin-navigation" label={gettext("Workspace")} open>
+        <.nav_group
+          id="koe-frame-admin-navigation"
+          label={gettext("Workspace")}
+          header_class="px-2 py-2 text-xs font-semibold text-base-content/60"
+          open
+        >
           <:item>
             <.link
               navigate="/admin"
               aria-current={if @current_page == :system, do: "page", else: nil}
               class={admin_nav_class(@current_page == :system)}
             >
-              <.icon name="hero-heart" class="size-4 shrink-0" />
+              <.icon name="hero-circles-stack" class="size-4 shrink-0" />
               <span>{gettext("System status")}</span>
             </.link>
           </:item>
@@ -76,8 +82,13 @@ defmodule Defdo.KoeFrameWeb.Layouts do
     """
   end
 
-  defp admin_nav_class(true), do: "btn btn-ghost btn-sm justify-start active"
-  defp admin_nav_class(false), do: "btn btn-ghost btn-sm justify-start"
+  defp admin_nav_class(true),
+    do:
+      "flex min-h-10 items-center gap-3 border-l-2 border-primary bg-base-200 px-3 text-sm font-medium text-base-content"
+
+  defp admin_nav_class(false),
+    do:
+      "flex min-h-10 items-center gap-3 border-l-2 border-transparent px-3 text-sm text-base-content/70 hover:bg-base-200 hover:text-base-content"
 
   @doc """
   Renders your app layout.

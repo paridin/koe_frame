@@ -311,7 +311,7 @@ defmodule Defdo.KoeFrameWeb.Admin.SpeechModelsLive do
     <Layouts.admin_shell
       flash={@flash}
       page_title="Speech model lab"
-      subtitle="Review Japanese speech models available to this KoeFrame instance."
+      subtitle="Japanese transcription models"
       current_page={:speech_models}
     >
       <:actions>
@@ -326,13 +326,14 @@ defmodule Defdo.KoeFrameWeb.Admin.SpeechModelsLive do
         </button>
       </:actions>
 
-      <div class="w-full max-w-7xl space-y-8">
+      <div class="mx-auto w-full max-w-7xl space-y-10">
         <div
           :if={inventory_loading?(@model)}
           id="speech-models-loading"
-          class="text-sm text-base-content/70"
+          class="flex min-h-28 items-center gap-3 text-sm text-base-content/70"
           role="status"
         >
+          <span class="loading loading-spinner loading-sm text-primary" aria-hidden="true"></span>
           Reading installed models and provider catalogs…
         </div>
 
@@ -348,153 +349,244 @@ defmodule Defdo.KoeFrameWeb.Admin.SpeechModelsLive do
           </p>
         </.alert>
 
-        <.panel id="installed-speech-models" scroll={false} padding="p-5">
-          <:header>
-            <div class="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 class="text-lg font-semibold">Installed Japanese ASR models</h2>
-                <p class="mt-1 text-sm text-base-content/65">
-                  The current transcription default is <code class="font-mono">{@model.inventory.default_model || "not configured"}</code>.
-                </p>
-              </div>
-              <.badge variant="neutral" label={"#{length(@model.inventory.installed)} installed"} />
-            </div>
-          </:header>
-
-          <div
-            :if={@model.inventory.installed == [] and !inventory_loading?(@model)}
-            class="py-5 text-sm text-base-content/65"
-          >
-            No Japanese ASR models are installed yet. Choose a catalog model below.
-          </div>
-
-          <div :if={@model.inventory.installed != []} class="overflow-x-auto">
-            <table class="table table-sm">
-              <thead>
-                <tr>
-                  <th>Model</th><th>Language</th><th>Use in comparison</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  :for={model <- @model.inventory.installed}
-                  id={"installed-model-#{dom_id(model.id)}"}
-                >
-                  <td class="font-mono text-sm">{model.id}</td>
-                  <td>Japanese</td>
-                  <td>
-                    <label class="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        class="checkbox checkbox-primary checkbox-sm"
-                        name="comparison[model_ids][]"
-                        value={model.key}
-                        form="speech-model-comparison"
-                        disabled={comparing?(@model)}
-                      />
-                      <span
-                        :if={model.id == @model.inventory.default_model}
-                        class="text-xs text-base-content/60"
-                      >Current default</span>
-                    </label>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </.panel>
-
-        <.panel id="speech-model-catalog" scroll={false} padding="p-5">
-          <:header>
-            <div>
-              <h2 class="text-lg font-semibold">Speaches catalog</h2>
-              <p class="mt-1 text-sm text-base-content/65">
-                Only Japanese speech recognition models listed by the connected Speaches service appear here.
-              </p>
-            </div>
-          </:header>
-
-          <div
-            :if={@model.inventory.candidates == [] and !inventory_loading?(@model)}
-            class="py-5 text-sm text-base-content/65"
-          >
-            No Japanese ASR candidates were returned by Speaches.
-          </div>
-
-          <ul class="divide-y divide-base-300">
-            <li
-              :for={model <- @model.inventory.candidates}
-              class="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between"
+        <div class="grid gap-10 xl:grid-cols-[minmax(0,1fr)_21rem] xl:gap-8">
+          <div class="min-w-0 space-y-10">
+            <section
+              id="installed-speech-models"
+              data-slot="model-list"
+              aria-labelledby="installed-heading"
             >
-              <div class="min-w-0">
-                <p class="break-all font-mono text-sm">{model.id}</p>
-                <p class="mt-1 text-xs text-base-content/60">
-                  Languages: {Enum.join(model.languages, ", ")}
+              <div class="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+                <h2 id="installed-heading" class="text-base font-semibold">Installed models</h2>
+                <p class="text-sm text-base-content/65">
+                  Default:
+                  <code class="font-mono text-base-content">{@model.inventory.default_model ||
+                    "not configured"}</code>
                 </p>
               </div>
-              <div class="flex items-center gap-3">
-                <.badge :if={model.installed?} variant="success" label="Installed" />
-                <button
-                  :if={!model.installed?}
-                  id={"download-model-#{dom_id(model.key)}"}
-                  type="button"
-                  class="btn btn-outline btn-sm"
-                  phx-click="download"
-                  phx-value-model_id={model.id}
-                  disabled={downloading_model_id(@model) != nil}
-                >
-                  {if downloading_model_id(@model) == model.id,
-                    do: "Downloading…",
-                    else: "Download to Speaches"}
-                </button>
+
+              <div
+                :if={@model.inventory.installed == [] and !inventory_loading?(@model)}
+                class="border-y border-base-300 py-6 text-sm text-base-content/65"
+              >
+                No Japanese ASR models installed. Choose one from the catalog below.
               </div>
-            </li>
-          </ul>
-        </.panel>
 
-        <.panel id="experimental-speech-models" scroll={false} padding="p-5">
-          <:header>
-            <div>
-              <h2 class="text-lg font-semibold">Experimental provider</h2>
-              <p class="mt-1 text-sm text-base-content/65">
-                These models run through their own provider adapter and stay outside the Japanese production path.
+              <div
+                :if={@model.inventory.installed != []}
+                class="overflow-x-auto border-y border-base-300"
+              >
+                <table class="table table-sm">
+                  <thead>
+                    <tr>
+                      <th class="pl-2">Model</th>
+                      <th>Language</th>
+                      <th class="text-right">Compare</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      :for={model <- @model.inventory.installed}
+                      id={"installed-model-#{dom_id(model.id)}"}
+                    >
+                      <td class="max-w-0 pl-2">
+                        <p class="break-all font-mono text-xs sm:text-sm">{model.id}</p>
+                        <p
+                          :if={model.id == @model.inventory.default_model}
+                          class="mt-1 text-xs text-primary"
+                        >
+                          Active transcription default
+                        </p>
+                      </td>
+                      <td class="whitespace-nowrap text-sm">Japanese</td>
+                      <td class="text-right">
+                        <input
+                          type="checkbox"
+                          class="checkbox checkbox-primary checkbox-sm"
+                          aria-label={"Compare #{model.id}"}
+                          name="comparison[model_ids][]"
+                          value={model.key}
+                          form="speech-model-comparison"
+                          disabled={comparing?(@model)}
+                        />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section
+              id="speech-model-catalog"
+              data-slot="model-catalog"
+              aria-labelledby="catalog-heading"
+            >
+              <div class="mb-3 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+                <h2 id="catalog-heading" class="text-base font-semibold">Speaches catalog</h2>
+                <p class="text-sm text-base-content/65">
+                  Japanese ASR models available from this provider.
+                </p>
+              </div>
+
+              <p
+                :if={@model.inventory.candidates == [] and !inventory_loading?(@model)}
+                class="border-y border-base-300 py-6 text-sm text-base-content/65"
+              >
+                No Japanese ASR candidates returned by Speaches.
               </p>
-            </div>
-          </:header>
 
-          <ul class="divide-y divide-base-300">
+              <ul
+                :if={@model.inventory.candidates != []}
+                class="divide-y divide-base-300 border-y border-base-300"
+              >
+                <li
+                  :for={model <- @model.inventory.candidates}
+                  class="flex min-w-0 flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div class="min-w-0">
+                    <p class="break-all font-mono text-xs sm:text-sm">{model.id}</p>
+                    <p class="mt-1 text-xs text-base-content/60">
+                      Languages: {Enum.join(model.languages, ", ")}
+                    </p>
+                  </div>
+                  <div class="flex shrink-0 items-center gap-3">
+                    <span :if={model.installed?} class="text-xs text-success">Installed</span>
+                    <button
+                      :if={!model.installed?}
+                      id={"download-model-#{dom_id(model.key)}"}
+                      type="button"
+                      class="btn btn-outline btn-sm"
+                      phx-click="download"
+                      phx-value-model_id={model.id}
+                      disabled={downloading_model_id(@model) != nil}
+                    >
+                      {if downloading_model_id(@model) == model.id,
+                        do: "Downloading…",
+                        else: "Download"}
+                    </button>
+                  </div>
+                </li>
+              </ul>
+            </section>
+          </div>
+
+          <aside
+            id="compare-speech-models"
+            data-slot="comparison-bench"
+            class="min-w-0 border-y border-base-300 bg-base-100 px-4 py-5 xl:sticky xl:top-6 xl:self-start xl:border xl:p-5"
+            aria-labelledby="comparison-heading"
+          >
+            <h2 id="comparison-heading" class="text-base font-semibold">Comparison bench</h2>
+            <p class="mt-1 text-sm leading-5 text-base-content/65">
+              Select 2–4 installed models, then compare them on the same Japanese clip.
+            </p>
+
+            <form
+              id="speech-model-comparison"
+              phx-submit="compare"
+              phx-change="validate_compare"
+              class="mt-5 space-y-5"
+            >
+              <div>
+                <label for={@uploads.clip.ref} class="mb-2 block text-sm font-medium">WAV clip</label>
+                <.live_file_input
+                  upload={@uploads.clip}
+                  class="file-input file-input-bordered w-full"
+                />
+                <p class="mt-2 text-xs text-base-content/60">Up to 25 MB · 30 seconds</p>
+                <p :for={entry <- @uploads.clip.entries} class="mt-2 text-xs text-base-content/70">
+                  {entry.client_name} · {Float.round(entry.progress / 1, 0)}%
+                </p>
+                <p :for={error <- upload_errors(@uploads.clip)} class="mt-2 text-sm text-error">
+                  {upload_error(error)}
+                </p>
+              </div>
+
+              <div>
+                <label for="comparison-reference" class="mb-2 block text-sm font-medium">
+                  Reference transcript <span class="font-normal text-base-content/60">optional</span>
+                </label>
+                <textarea
+                  id="comparison-reference"
+                  name="comparison[reference]"
+                  maxlength="5000"
+                  rows="3"
+                  class="textarea textarea-bordered w-full"
+                  placeholder="Japanese transcript for CER"
+                  disabled={comparing?(@model)}
+                ></textarea>
+              </div>
+
+              <button
+                type="submit"
+                class="btn btn-primary w-full"
+                disabled={
+                  comparing?(@model) or
+                    length(@model.inventory.installed ++ @model.inventory.experimental_installed) < 2
+                }
+              >
+                {if comparing?(@model), do: "Comparing…", else: "Run comparison"}
+              </button>
+            </form>
+
+            <.alert :if={comparison_message(@model)} variant="warning" live={false} class="mt-4">
+              <p>{comparison_message(@model)}</p>
+            </.alert>
+          </aside>
+        </div>
+
+        <section
+          id="experimental-speech-models"
+          data-slot="experimental-models"
+          aria-labelledby="experimental-heading"
+          class="border-t border-base-300 pt-6"
+        >
+          <header class="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 id="experimental-heading" class="text-base font-semibold">Experimental provider</h2>
+            <p class="text-sm text-base-content/65">Separate from production transcription.</p>
+          </header>
+          <p
+            :if={@model.inventory.experimental_candidates == []}
+            class="py-4 text-sm text-base-content/65"
+          >
+            No experimental candidates are available.
+          </p>
+          <ul
+            :if={@model.inventory.experimental_candidates != []}
+            class="divide-y divide-base-300 border-y border-base-300"
+          >
             <li
               :for={model <- @model.inventory.experimental_candidates}
-              class="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between"
+              class="grid gap-4 py-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-start"
             >
               <div class="min-w-0">
-                <div class="flex flex-wrap items-center gap-2">
-                  <p class="font-semibold">{model.name}</p>
-                  <.badge variant="warning" label="Experimental" />
-                  <.badge :if={model.installed?} variant="success" label="Installed" />
+                <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <h3 class="font-semibold">{model.name}</h3>
+                  <span class="text-xs text-warning">Experimental</span>
+                  <span :if={model.installed?} class="text-xs text-success">Installed</span>
                 </div>
                 <p class="mt-1 break-all font-mono text-xs text-base-content/60">{model.id}</p>
-                <p class="mt-2 text-sm text-base-content/70">
-                  Published languages: {Enum.join(model.languages, ", ")}. Japanese is not listed; compare it on Japanese audio as a negative control.
+                <p class="mt-2 max-w-3xl text-sm leading-5 text-base-content/70">
+                  Published languages: {Enum.join(model.languages, ", ")}. Japanese is not listed; use Japanese audio only as a negative control.
                 </p>
-                <div class="mt-3 rounded-box border border-base-300 bg-base-200/60 p-3 text-sm">
-                  <p>
-                    Lifecycle stage: <span class="font-medium">{lifecycle_stage(model.lifecycle_stage)}</span>.
-                    Promotion is blocked until all criteria pass:
-                  </p>
+                <p :if={!model.runtime_configured?} class="mt-2 text-sm text-warning">
+                  Cactus runner is not configured in this environment.
+                </p>
+                <details class="mt-3 max-w-3xl text-sm">
+                  <summary class="w-fit cursor-pointer text-base-content/70 hover:text-base-content">
+                    Promotion blockers · {lifecycle_stage(model.lifecycle_stage)}
+                  </summary>
                   <ul class="mt-2 list-disc space-y-1 pl-5 text-base-content/70">
                     <li :for={blocker <- model.promotion_blockers}>{promotion_blocker(blocker)}</li>
                   </ul>
-                </div>
-                <p :if={!model.runtime_configured?} class="mt-1 text-xs text-warning">
-                  Cactus runner is not configured in this KoeFrame environment.
-                </p>
+                </details>
               </div>
-              <div class="flex shrink-0 items-center gap-3">
+              <div class="flex flex-wrap items-center gap-4 md:justify-end">
                 <label :if={model.comparison_available?} class="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
                     class="checkbox checkbox-primary checkbox-sm"
+                    aria-label={"Compare #{model.name}"}
                     name="comparison[model_ids][]"
                     value={model.key}
                     form="speech-model-comparison"
@@ -512,130 +604,65 @@ defmodule Defdo.KoeFrameWeb.Admin.SpeechModelsLive do
                 >
                   {if downloading_model_id(@model) == model.key,
                     do: "Downloading…",
-                    else: "Download to Cactus lab"}
+                    else: "Install for evaluation"}
                 </button>
-                <.badge
+                <span
                   :if={!model.installed? and !model.installable?}
-                  variant="neutral"
-                  label="Runtime unavailable"
-                />
+                  class="text-sm text-base-content/60"
+                >
+                  Runtime unavailable
+                </span>
               </div>
             </li>
           </ul>
-        </.panel>
+        </section>
 
-        <.panel id="compare-speech-models" scroll={false} padding="p-5">
-          <:header>
-            <div>
-              <h2 class="text-lg font-semibold">Compare on one clip</h2>
-              <p class="mt-1 text-sm text-base-content/65">
-                Run two to four installed models against the same Japanese WAV, then inspect transcripts, detected language, elapsed time, and optional character error rate.
-              </p>
-            </div>
-          </:header>
-
-          <form
-            id="speech-model-comparison"
-            phx-submit="compare"
-            phx-change="validate_compare"
-            class="space-y-5"
-          >
-            <div>
-              <label for={@uploads.clip.ref} class="label"><span class="label-text font-medium">Audio clip (WAV, up to 25 MB and 30 seconds)</span></label>
-              <.live_file_input upload={@uploads.clip} class="file-input file-input-bordered w-full" />
-              <p :for={entry <- @uploads.clip.entries} class="mt-2 text-xs text-base-content/60">
-                {entry.client_name} · {Float.round(entry.progress / 1, 0)}%
-              </p>
-              <p :for={error <- upload_errors(@uploads.clip)} class="mt-2 text-sm text-error">
-                {upload_error(error)}
-              </p>
-            </div>
-
-            <div>
-              <label for="comparison-reference" class="label"><span class="label-text font-medium">Reference transcript (optional, Japanese)</span></label>
-              <textarea
-                id="comparison-reference"
-                name="comparison[reference]"
-                maxlength="5000"
-                rows="3"
-                class="textarea textarea-bordered w-full"
-                placeholder="Paste a trusted transcript to calculate character error rate."
-                disabled={comparing?(@model)}
-              ></textarea>
-            </div>
-
-            <button
-              type="submit"
-              class="btn btn-primary"
-              disabled={
-                comparing?(@model) or
-                  length(@model.inventory.installed ++ @model.inventory.experimental_installed) < 2
-              }
-            >
-              {if comparing?(@model), do: "Comparing models…", else: "Compare selected models"}
-            </button>
-          </form>
-
-          <.alert :if={comparison_message(@model)} variant="warning" live={false} class="mt-5">
-            <p>{comparison_message(@model)}</p>
-          </.alert>
-
-          <div
-            :if={comparison_results(@model) != []}
-            id="speech-model-comparison-results"
-            class="mt-6 space-y-4"
-            aria-live="polite"
-          >
-            <article
+        <section
+          :if={comparison_results(@model) != []}
+          id="speech-model-comparison-results"
+          data-slot="comparison-results"
+          aria-labelledby="comparison-results-heading"
+          aria-live="polite"
+        >
+          <h2 id="comparison-results-heading" class="mb-3 text-base font-semibold">
+            Comparison results
+          </h2>
+          <ul class="divide-y divide-base-300 border-y border-base-300">
+            <li
               :for={result <- comparison_results(@model)}
               id={"comparison-result-#{dom_id(result.key)}"}
-              class="rounded-box border border-base-300 p-4"
+              class="py-4"
             >
-              <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
                 <h3 class="break-all font-mono text-sm font-semibold">{result.id}</h3>
-                <div class="flex flex-wrap gap-2">
-                  <.badge
-                    variant={if result.status == :ok, do: "success", else: "error"}
-                    label={if result.status == :ok, do: "Complete", else: "Failed"}
-                  />
-                  <.badge
-                    :if={result.status == :ok}
-                    variant="neutral"
-                    label={"#{result.elapsed_ms} ms · #{result.word_count} words"}
-                  />
-                  <.badge
-                    :if={result.character_error_rate != nil}
-                    variant="info"
-                    label={"CER #{Float.round(result.character_error_rate, 2)}%"}
-                  />
-                  <.badge
-                    :if={!result.japanese_supported?}
-                    variant="warning"
-                    label="Japanese support not listed"
-                  />
-                  <.badge
-                    :if={result.language}
-                    variant="neutral"
-                    label={"Detected #{result.language}"}
-                  />
-                </div>
+                <p class="text-sm text-base-content/70">
+                  <span class={if result.status == :ok, do: "text-success", else: "text-error"}>
+                    {if result.status == :ok, do: "Complete", else: "Failed"}
+                  </span>
+                  <span :if={result.status == :ok}> · {result.elapsed_ms} ms · {result.word_count} words</span>
+                  <span :if={result.character_error_rate != nil}>
+                    · CER {Float.round(result.character_error_rate, 2)}%
+                  </span>
+                  <span :if={result.language}> · Detected {result.language}</span>
+                </p>
               </div>
+              <p :if={!result.japanese_supported?} class="mt-2 text-sm text-warning">
+                Japanese support is not listed for this model.
+              </p>
               <p :if={result.transcript} class="mt-3 whitespace-pre-wrap text-sm leading-6">
                 {result.transcript}
               </p>
               <p :if={result.error} class="mt-3 text-sm text-error">
                 {comparison_error(result.error)}
               </p>
-            </article>
-          </div>
-        </.panel>
+            </li>
+          </ul>
+        </section>
 
-        <.alert variant="info" live={false} class="items-start">
-          <p>
-            Downloads only add model files to their configured provider. The current lifecycle is exploration → Japanese benchmark → repeatable quality and latency → human review. A single-clip comparison is exploratory evidence. This page does not promote or activate models, and the transcription default remains {@model.inventory.default_model ||
-              "the configured model"}.
-          </p>
-        </.alert>
+        <p class="max-w-4xl border-l-2 border-base-300 pl-3 text-sm leading-5 text-base-content/65">
+          Downloads only add files to their provider. A single-clip comparison is exploratory evidence; it does not promote a model or change the transcription default ({@model.inventory.default_model ||
+            "configured model"}). Evaluation proceeds from Japanese benchmarks to repeatable quality/latency results and human review.
+        </p>
       </div>
     </Layouts.admin_shell>
     """

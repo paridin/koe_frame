@@ -61,7 +61,7 @@ defmodule Defdo.KoeFrameWeb.Admin.SystemLive do
     <Layouts.admin_shell
       flash={@flash}
       page_title="System status"
-      subtitle="Check the identity services behind this KoeFrame instance."
+      subtitle="Identity services and access"
       current_page={:system}
     >
       <:actions>
@@ -77,80 +77,105 @@ defmodule Defdo.KoeFrameWeb.Admin.SystemLive do
         </button>
       </:actions>
 
-      <div class="w-full max-w-7xl space-y-6">
-        <section class="flex flex-col gap-3 border-b border-base-300 pb-5 sm:flex-row sm:items-end sm:justify-between">
-          <div class="min-w-0">
-            <p class="text-sm text-base-content/65">Signed in as</p>
-            <h2 class="break-words text-lg font-semibold">
-              {user_label(@model.current_user)}
-            </h2>
+      <div class="mx-auto w-full max-w-6xl space-y-8">
+        <section
+          data-slot="identity-summary"
+          data-state={summary_state(@model)}
+          class="flex flex-col gap-4 border-b border-base-300 pb-5 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div class="flex min-w-0 items-center gap-4">
+            <span class={summary_mark_class(@model)} aria-hidden="true">
+              <.icon name={summary_icon(@model)} class="size-5" />
+            </span>
+            <div class="min-w-0">
+              <p class="text-sm font-semibold">{summary_label(@model)}</p>
+              <p class="mt-1 break-words text-sm text-base-content/70">
+                Signed in as
+                <span class="font-medium text-base-content">{user_label(@model.current_user)}</span>
+              </p>
+            </div>
           </div>
-          <div class="flex flex-wrap items-center gap-3">
-            <.badge
-              :if={!loading?(@model)}
-              variant={overall_variant(checks(@model))}
-              label={overall_label(checks(@model))}
-            />
+          <div class="flex shrink-0 flex-col gap-1 text-sm text-base-content/65 sm:items-end">
             <time
               :if={@model.checked_at}
-              class="font-mono text-xs text-base-content/60"
+              class="font-mono text-xs"
               datetime={DateTime.to_iso8601(@model.checked_at)}
             >
-              Checked {format_time(@model.checked_at)}
+              Last checked {format_time(@model.checked_at)}
             </time>
+            <span :if={!@model.checked_at}>Checks run when this page opens</span>
+            <span class="font-mono text-xs">Scope: {@model.admin_scope}</span>
           </div>
         </section>
 
         <div
           :if={loading?(@model)}
           id="identity-diagnostics-loading"
-          class="flex items-center gap-3 py-8 text-sm text-base-content/70"
+          class="flex min-h-32 items-center gap-3 text-sm text-base-content/70"
           role="status"
         >
           <span class="loading loading-spinner loading-sm text-primary" aria-hidden="true"></span>
-          Checking OIDC, the Auth preflight, and the stored admin login registration…
+          Checking identity services…
         </div>
 
-        <div
+        <section
           :if={!loading?(@model)}
           id="identity-diagnostics"
-          class="grid grid-cols-1 gap-3 md:grid-cols-2"
+          aria-labelledby="identity-checks-heading"
           aria-live="polite"
         >
-          <.panel
-            :for={check <- checks(@model)}
-            id={"identity-check-#{check.id}"}
-            scroll={false}
-            class="h-full"
-            padding="p-4"
-          >
-            <:header>
-              <div class="flex min-w-0 items-start justify-between gap-3">
-                <h3 class="min-w-0 break-words text-base font-semibold">{check.title}</h3>
-                <.badge variant={check_variant(check.status)} label={check_label(check.status)} />
-              </div>
-            </:header>
-            <p class="mt-3 text-sm leading-6 text-base-content/75">{check.message}</p>
-          </.panel>
-        </div>
-
-        <.panel id="identity-check-admin-authorization" scroll={false} padding="p-4">
-          <:header>
-            <div class="flex min-w-0 items-start justify-between gap-3">
-              <h3 class="min-w-0 break-words text-base font-semibold">Admin authorization</h3>
-              <.badge variant="success" label="Passed" />
-            </div>
-          </:header>
-          <p class="mt-3 text-sm leading-6 text-base-content/75">
-            Admin access verified with an active IdP token carrying {@model.admin_scope} for this tenant.
+          <div class="mb-3 flex items-baseline justify-between gap-3">
+            <h2 id="identity-checks-heading" class="text-base font-semibold">Service checks</h2>
+            <span class="text-xs text-base-content/60">Read-only</span>
+          </div>
+          <ul class="divide-y divide-base-300 border-y border-base-300">
+            <li
+              :for={check <- checks(@model)}
+              id={"identity-check-#{check.id}"}
+              data-slot="service-check"
+              data-state={check.status}
+              class="grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-3 gap-y-1 py-4 sm:grid-cols-[1.5rem_minmax(10rem,0.8fr)_minmax(0,2fr)_auto] sm:items-center"
+            >
+              <span aria-hidden="true">
+                <.icon
+                  name={check_icon(check.status)}
+                  class={check_icon_class(check.status)}
+                />
+              </span>
+              <h3 class="min-w-0 break-words text-sm font-semibold">{check.title}</h3>
+              <p class="col-start-2 text-sm leading-5 text-base-content/70 sm:col-start-auto">
+                {check.message}
+              </p>
+              <.badge
+                class="col-start-2 mt-1 w-fit sm:col-start-auto sm:mt-0"
+                variant={check_variant(check.status)}
+                label={check_label(check.status)}
+              />
+            </li>
+            <li
+              id="identity-check-admin-authorization"
+              data-slot="service-check"
+              data-state="ok"
+              class="grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-3 gap-y-1 py-4 sm:grid-cols-[1.5rem_minmax(10rem,0.8fr)_minmax(0,2fr)_auto] sm:items-center"
+            >
+              <span aria-hidden="true">
+                <.icon name="hero-check-circle" class="size-5 text-success" />
+              </span>
+              <h3 class="min-w-0 text-sm font-semibold">Admin authorization</h3>
+              <p class="col-start-2 text-sm leading-5 text-base-content/70 sm:col-start-auto">
+                Active IdP token carries the required tenant scope.
+              </p>
+              <.badge
+                class="col-start-2 mt-1 w-fit sm:col-start-auto sm:mt-0"
+                variant="success"
+                label="Passed"
+              />
+            </li>
+          </ul>
+          <p class="mt-4 max-w-3xl border-l-2 border-base-300 pl-3 text-sm leading-5 text-base-content/65">
+            The Auth first-admin preflight checks readiness only; it does not create an IAM user.
           </p>
-        </.panel>
-
-        <.alert variant="info" live={false} class="items-start">
-          <p>
-            These checks are read-only. The Auth first-admin preflight validates readiness; it does not create an IAM user.
-          </p>
-        </.alert>
+        </section>
       </div>
     </Layouts.admin_shell>
     """
@@ -202,17 +227,49 @@ defmodule Defdo.KoeFrameWeb.Admin.SystemLive do
   defp user_label(%{email: email}) when is_binary(email) and email != "", do: email
   defp user_label(_user), do: "Authenticated administrator"
 
-  defp overall_variant(checks) do
-    if Enum.all?(checks, &(&1.status == :ok)), do: "success", else: "warning"
-  end
-
-  defp overall_label(checks) do
-    if Enum.all?(checks, &(&1.status == :ok)), do: "All checks passed", else: "Needs attention"
-  end
-
   defp check_variant(:ok), do: "success"
   defp check_variant(:error), do: "error"
   defp check_variant(:skipped), do: "ghost"
+
+  defp check_icon(:ok), do: "hero-check-circle"
+  defp check_icon(:error), do: "hero-exclamation-circle"
+  defp check_icon(:skipped), do: "hero-minus-circle"
+  defp check_icon(_status), do: "hero-question-mark-circle"
+
+  defp check_icon_class(:ok), do: "size-5 text-success"
+  defp check_icon_class(:error), do: "size-5 text-error"
+  defp check_icon_class(:skipped), do: "size-5 text-base-content/50"
+  defp check_icon_class(_status), do: "size-5 text-base-content/50"
+
+  defp summary_state(%Model{diagnostics: :loading}), do: "loading"
+
+  defp summary_state(%Model{diagnostics: {:ready, checks}}) do
+    if Enum.all?(checks, &(&1.status == :ok)), do: "ok", else: "attention"
+  end
+
+  defp summary_label(%Model{diagnostics: :loading}), do: "Checking identity services"
+
+  defp summary_label(%Model{diagnostics: {:ready, checks}}) do
+    if Enum.all?(checks, &(&1.status == :ok)), do: "All checks passed", else: "Attention required"
+  end
+
+  defp summary_mark_class(%Model{diagnostics: :loading}),
+    do:
+      "flex size-10 shrink-0 items-center justify-center border border-base-300 text-base-content/60"
+
+  defp summary_mark_class(%Model{diagnostics: {:ready, checks}}) do
+    if Enum.all?(checks, &(&1.status == :ok)),
+      do:
+        "flex size-10 shrink-0 items-center justify-center border border-success/40 bg-success/10 text-success",
+      else:
+        "flex size-10 shrink-0 items-center justify-center border border-warning/40 bg-warning/10 text-warning"
+  end
+
+  defp summary_icon(%Model{diagnostics: :loading}), do: "hero-arrow-path"
+
+  defp summary_icon(%Model{diagnostics: {:ready, checks}}) do
+    if Enum.all?(checks, &(&1.status == :ok)), do: "hero-check", else: "hero-exclamation-triangle"
+  end
 
   defp check_label(:ok), do: "Passed"
   defp check_label(:error), do: "Needs attention"

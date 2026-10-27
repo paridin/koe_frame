@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0-dev.10 — 2026-10-26
+
+### Changed
+
+- Rework Admin status diagnostics into a compact service list with a clear
+  overall state.
+- Reshape speech model evaluation into a model workspace with a dedicated
+  comparison bench and a separate experimental section.
+
 ## 0.1.0-dev.9 — 2026-10-26
 
 ### Changed
