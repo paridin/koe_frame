@@ -8,6 +8,7 @@ defmodule Defdo.KoeFrame.Admin.IdentityDiagnosticsTest do
   @client_id "public-setup-client"
   @tenant_id "tenant-test"
   @private_value "never-render-this-test-credential"
+  @connection_id "tenant-login-connection-id"
   @rsa_modulus Base.url_encode64(:binary.copy(<<0xA5>>, 256), padding: false)
 
   @discovery %{
@@ -90,7 +91,7 @@ defmodule Defdo.KoeFrame.Admin.IdentityDiagnosticsTest do
                "client_id" => "admin-login-client",
                "client_secret" => @private_value,
                "redirect_uri" => @redirect_uri,
-               "connection" => "internal_admin"
+               "connection" => @connection_id
              }}
         },
         overrides

@@ -7,6 +7,7 @@ defmodule Defdo.KoeFrame.Admin.PKCESessionAuthenticatorTest do
   @cache_key "opaque-pkce-cache-key"
   @access_token "real-access-token-fixture"
   @tenant_id "tenant-1"
+  @connection_id "tenant-login-connection-id"
 
   setup do
     keys = [
@@ -133,7 +134,7 @@ defmodule Defdo.KoeFrame.Admin.PKCESessionAuthenticatorTest do
       client_id: "koe-frame-login",
       client_secret: "fixture-secret-do-not-render",
       redirect_uri: "https://koe-frame.example.test/auth/callback",
-      connection: "internal_admin"
+      connection: @connection_id
     }
   end
 

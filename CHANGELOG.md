@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-dev.11 — 2026-10-27
+
+### Fixed
+
+- Treat the admin login registration's connection as an opaque ID, not a
+  connection type.
+
 ## 0.1.0-dev.10 — 2026-10-26
 
 ### Changed

@@ -150,8 +150,7 @@ defmodule Defdo.KoeFrame.Admin.IdentityDiagnostics do
     status =
       case response do
         {:ok, credential} ->
-          if CredentialStore.valid_admin_access?(credential) and
-               credential_value(credential, :connection) == "internal_admin" do
+          if CredentialStore.valid_admin_access?(credential) do
             :ok
           else
             :error
@@ -167,8 +166,7 @@ defmodule Defdo.KoeFrame.Admin.IdentityDiagnostics do
       status: status,
       message:
         if(status == :ok,
-          do:
-            "Vault contains a complete login registration pinned to the internal admin connection.",
+          do: "Vault contains a complete admin login registration for this tenant.",
           else: "The tenant's admin login registration is missing or incomplete in Vault."
         )
     }
@@ -179,10 +177,6 @@ defmodule Defdo.KoeFrame.Admin.IdentityDiagnostics do
       fetcher when is_function(fetcher, 1) -> fetcher.(tenant_id)
       _other -> CredentialStore.fetch(tenant_id)
     end
-  end
-
-  defp credential_value(credential, key) do
-    Map.get(credential, key) || Map.get(credential, Atom.to_string(key))
   end
 
   defp result_status(:ok), do: :ok
