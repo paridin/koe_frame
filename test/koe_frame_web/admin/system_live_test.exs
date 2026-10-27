@@ -78,6 +78,7 @@ defmodule Defdo.KoeFrameWeb.Admin.SystemLiveTest do
     assert html =~ "KoeFrame Admin"
     assert html =~ "koe-frame-admin-shell"
     assert html =~ "Admin navigation"
+    assert html =~ "Admin sections"
     assert html =~ "Speech models"
     assert html =~ "data-slot=\"identity-summary\""
     assert html =~ "Service checks"

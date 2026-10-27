@@ -15,7 +15,6 @@ defmodule Defdo.KoeFrameWeb.Layouts do
 
   attr :flash, :map, required: true
   attr :page_title, :string, required: true
-  attr :subtitle, :string, default: nil
   attr :current_page, :atom, values: [:system, :speech_models], required: true
   slot :actions
   slot :inner_block, required: true
@@ -25,10 +24,12 @@ defmodule Defdo.KoeFrameWeb.Layouts do
     <.admin_page_shell
       id="koe-frame-admin-shell"
       title={@page_title}
-      subtitle={@subtitle}
       nav_label={gettext("Admin navigation")}
       nav_trigger_label={gettext("Open admin navigation")}
+      surface="bg-base-200 text-base-content"
+      panel_surface="bg-neutral text-neutral-content"
       header={:sticky}
+      state={:hidden}
       container={false}
     >
       <:logo>
@@ -37,7 +38,7 @@ defmodule Defdo.KoeFrameWeb.Layouts do
           class="flex items-center gap-3"
           aria-label={gettext("KoeFrame admin home")}
         >
-          <span class="border-l-2 border-primary pl-2 font-mono text-sm font-bold tracking-tight text-base-content">
+          <span class="border-l-2 border-primary pl-2 font-mono text-sm font-bold tracking-tight text-neutral-content">
             KF
           </span>
           <span class="text-sm font-semibold">KoeFrame</span>
@@ -48,7 +49,7 @@ defmodule Defdo.KoeFrameWeb.Layouts do
         <.nav_group
           id="koe-frame-admin-navigation"
           label={gettext("Workspace")}
-          header_class="px-2 py-2 text-xs font-semibold text-base-content/60"
+          header_class="px-2 py-2 text-xs font-semibold text-neutral-content/80"
           open
         >
           <:item>
@@ -74,7 +75,27 @@ defmodule Defdo.KoeFrameWeb.Layouts do
         </.nav_group>
       </:nav>
 
-      <:actions>{render_slot(@actions)}</:actions>
+      <:actions>
+        <div class="flex w-full flex-wrap items-center justify-end gap-x-8 gap-y-3">
+          <nav aria-label={gettext("Admin sections")} class="hidden items-center gap-6 lg:flex">
+            <.link
+              navigate="/admin"
+              aria-current={if @current_page == :system, do: "page", else: nil}
+              class={admin_top_nav_class(@current_page == :system)}
+            >
+              {gettext("System status")}
+            </.link>
+            <.link
+              navigate="/admin/speech-models"
+              aria-current={if @current_page == :speech_models, do: "page", else: nil}
+              class={admin_top_nav_class(@current_page == :speech_models)}
+            >
+              {gettext("Speech models")}
+            </.link>
+          </nav>
+          <div class="flex items-center gap-2">{render_slot(@actions)}</div>
+        </div>
+      </:actions>
 
       <.flash_group flash={@flash} />
       {render_slot(@inner_block)}
@@ -84,11 +105,18 @@ defmodule Defdo.KoeFrameWeb.Layouts do
 
   defp admin_nav_class(true),
     do:
-      "flex min-h-10 items-center gap-3 border-l-2 border-primary bg-base-200 px-3 text-sm font-medium text-base-content"
+      "flex min-h-10 items-center gap-3 border-l-2 border-primary bg-neutral-content/10 px-3 text-sm font-medium text-neutral-content"
 
   defp admin_nav_class(false),
     do:
-      "flex min-h-10 items-center gap-3 border-l-2 border-transparent px-3 text-sm text-base-content/70 hover:bg-base-200 hover:text-base-content"
+      "flex min-h-10 items-center gap-3 border-l-2 border-transparent px-3 text-sm text-neutral-content/80 hover:bg-neutral-content/10 hover:text-neutral-content"
+
+  defp admin_top_nav_class(true),
+    do: "border-b-2 border-primary pb-1 text-sm font-semibold text-neutral-content"
+
+  defp admin_top_nav_class(false),
+    do:
+      "border-b-2 border-transparent pb-1 text-sm text-neutral-content/80 hover:text-neutral-content"
 
   @doc """
   Renders your app layout.

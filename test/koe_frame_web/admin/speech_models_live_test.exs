@@ -104,6 +104,7 @@ defmodule Defdo.KoeFrameWeb.Admin.SpeechModelsLiveTest do
     assert html =~ "Speech model lab"
     assert html =~ "koe-frame-admin-shell"
     assert html =~ "Admin navigation"
+    assert html =~ "Admin sections"
     assert html =~ "System status"
     assert html =~ "Comparison bench"
     assert html =~ "Installed models"

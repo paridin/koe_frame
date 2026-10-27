@@ -13,6 +13,13 @@
 /* Required for Tailwind to automatically pick up changes in colocated CSS files in dev */
 @source "../../_build/dev/phoenix-colocated/koe_frame/*/";
 
+/* Desktop uses the horizontal section links; the shared shell nav remains the mobile drawer. */
+@media (min-width: 64rem) {
+  #koe-frame-admin-shell aside[role="dialog"][data-nav-state="hidden"] {
+    visibility: hidden;
+  }
+}
+
 /* A Tailwind plugin that makes "hero-#{ICON}" classes available.
    The heroicons installation itself is managed by your mix.exs */
 @plugin "../vendor/heroicons";

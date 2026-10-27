@@ -311,7 +311,6 @@ defmodule Defdo.KoeFrameWeb.Admin.SpeechModelsLive do
     <Layouts.admin_shell
       flash={@flash}
       page_title="Speech model lab"
-      subtitle="Japanese transcription models"
       current_page={:speech_models}
     >
       <:actions>

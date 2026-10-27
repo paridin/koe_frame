@@ -61,7 +61,6 @@ defmodule Defdo.KoeFrameWeb.Admin.SystemLive do
     <Layouts.admin_shell
       flash={@flash}
       page_title="System status"
-      subtitle="Identity services and access"
       current_page={:system}
     >
       <:actions>

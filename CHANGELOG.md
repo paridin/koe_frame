@@ -6,6 +6,7 @@
 
 - Rework Admin status diagnostics into a compact service list with a clear
   overall state.
+- Use a compact horizontal Admin navigation over a high-contrast neutral header.
 - Reshape speech model evaluation into a model workspace with a dedicated
   comparison bench and a separate experimental section.
 
