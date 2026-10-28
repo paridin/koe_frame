@@ -17,7 +17,7 @@ RUN apt-get update \
 
 WORKDIR /app
 
-RUN mix do local.hex --force + local.rebar --force
+RUN mix do local.hex 2.6.0 --force + local.rebar --force
 
 COPY mix.exs mix.lock .formatter.exs VERSION ./
 COPY config/ config/
