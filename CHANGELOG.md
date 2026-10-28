@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-dev.12 — 2026-10-28
+
+### Changed
+
+- Pin Hex CLI to 2.6.0 in CI and image builds.
+
 ## 0.1.0-dev.11 — 2026-10-27
 
 ### Fixed
