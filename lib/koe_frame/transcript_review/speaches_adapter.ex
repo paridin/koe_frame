@@ -1,6 +1,6 @@
 defmodule Defdo.KoeFrame.TranscriptReview.SpeachesAdapter do
   @moduledoc """
-  Streams one extracted WAV clip to the configured private Speaches endpoint.
+  Streams one extracted WAV clip to the tenant's Vault-configured Speaches endpoint.
 
   Provider response bodies and endpoint details are never copied into returned
   errors.
@@ -15,8 +15,7 @@ defmodule Defdo.KoeFrame.TranscriptReview.SpeachesAdapter do
 
   @impl true
   def configuration do
-    with {:ok, endpoint} <- endpoint(),
-         :ok <- validate_endpoint(endpoint),
+    with {:ok, _connection} <- connection(),
          {:ok, model} <- model(),
          {:ok, _timeout_ms} <- timeout_ms() do
       {:ok, %{model: model}}
@@ -39,31 +38,33 @@ defmodule Defdo.KoeFrame.TranscriptReview.SpeachesAdapter do
   def transcribe(_wav_path, _language, _duration_ms), do: {:error, :invalid_transcription_request}
 
   defp settings do
-    with {:ok, endpoint} <- endpoint(),
-         :ok <- validate_endpoint(endpoint),
+    with {:ok, connection} <- connection(),
          {:ok, model} <- model(),
          {:ok, timeout_ms} <- timeout_ms() do
       {:ok,
-       %{endpoint: String.trim_trailing(endpoint, "/"), model: model, timeout_ms: timeout_ms}}
+       %{
+         endpoint: connection.base_url,
+         api_key: connection.api_key,
+         model: model,
+         timeout_ms: timeout_ms
+       }}
     end
   end
 
-  defp endpoint do
-    case Application.get_env(:koe_frame, :speaches_base_url) do
-      endpoint when is_binary(endpoint) and endpoint != "" -> {:ok, endpoint}
-      _ -> {:error, :speaches_endpoint_not_configured}
+  defp connection do
+    provider = Application.get_env(:koe_frame, :speaches_vault_provider, SpeachesVaultProvider)
+
+    case provider.fetch() do
+      {:ok, %{base_url: base_url, api_key: api_key} = connection}
+      when is_binary(base_url) and (is_nil(api_key) or is_binary(api_key)) ->
+        {:ok, connection}
+
+      {:error, _reason} ->
+        {:error, :speaches_credentials_unavailable}
+
+      _other ->
+        {:error, :speaches_credentials_unavailable}
     end
-  end
-
-  defp validate_endpoint(endpoint) do
-    uri = URI.parse(endpoint)
-
-    valid? =
-      uri.scheme in ["http", "https"] and is_binary(uri.host) and uri.host != "" and
-        is_nil(uri.userinfo) and is_nil(uri.query) and is_nil(uri.fragment) and
-        uri.path in [nil, "", "/"]
-
-    if valid?, do: :ok, else: {:error, :invalid_speaches_endpoint}
   end
 
   defp model do
@@ -128,7 +129,10 @@ defmodule Defdo.KoeFrame.TranscriptReview.SpeachesAdapter do
       redirect: false
     ]
 
-    options = add_test_plug(options)
+    options =
+      options
+      |> maybe_add_api_key(settings.api_key)
+      |> add_test_plug()
 
     case Req.post(settings.endpoint <> @transcription_path, options) do
       {:ok, %{status: status} = response} when status in 200..299 ->
@@ -159,6 +163,12 @@ defmodule Defdo.KoeFrame.TranscriptReview.SpeachesAdapter do
         {:error, :speaches_unavailable}
       end
   end
+
+  defp maybe_add_api_key(options, api_key) when is_binary(api_key) and api_key != "" do
+    Keyword.put(options, :headers, [{"authorization", "Bearer " <> api_key}])
+  end
+
+  defp maybe_add_api_key(options, _api_key), do: options
 
   defp add_test_plug(options) do
     if Application.get_env(:koe_frame, :runtime_env, :prod) == :test do

@@ -6,6 +6,7 @@ defmodule Defdo.KoeFrameWeb.Admin.SpeechModelsLive do
 
   on_mount({Defdo.KoeFrameWeb.Hook.RequireAdmin, :ensure})
 
+  alias Defdo.Tenant.Context
   alias Defdo.KoeFrame.Admin.SpeechModels
 
   @max_upload_bytes 25_000_000
@@ -199,13 +200,27 @@ defmodule Defdo.KoeFrameWeb.Admin.SpeechModelsLive do
   defp run_cmds(socket, []), do: socket
 
   defp run_cmds(socket, [:load_inventory | rest]) do
-    socket = start_async(socket, :inventory, &SpeechModels.inventory/0, timeout: 30_000)
+    tenant_id = socket.assigns.current_tenant_id
+
+    socket =
+      start_async(
+        socket,
+        :inventory,
+        fn -> with_tenant_context(tenant_id, &SpeechModels.inventory/0) end,
+        timeout: 30_000
+      )
+
     run_cmds(socket, rest)
   end
 
   defp run_cmds(socket, [{:download, model_id} | rest]) do
+    tenant_id = socket.assigns.current_tenant_id
+
     socket =
-      start_async(socket, :download_model, fn -> SpeechModels.download(model_id) end,
+      start_async(
+        socket,
+        :download_model,
+        fn -> with_tenant_context(tenant_id, fn -> SpeechModels.download(model_id) end) end,
         timeout: @download_timeout
       )
 
@@ -219,13 +234,17 @@ defmodule Defdo.KoeFrameWeb.Admin.SpeechModelsLive do
   end
 
   defp run_cmds(socket, [{:compare_models, path, model_ids, reference} | rest]) do
+    tenant_id = socket.assigns.current_tenant_id
+
     socket =
       start_async(
         socket,
         :compare_models,
         fn ->
           try do
-            SpeechModels.compare(path, model_ids, reference)
+            with_tenant_context(tenant_id, fn ->
+              SpeechModels.compare(path, model_ids, reference)
+            end)
           after
             File.rm(path)
           end
@@ -235,6 +254,12 @@ defmodule Defdo.KoeFrameWeb.Admin.SpeechModelsLive do
 
     run_cmds(socket, rest)
   end
+
+  defp with_tenant_context(tenant_id, fun)
+       when is_binary(tenant_id) and tenant_id != "" and is_function(fun, 0),
+       do: Context.with_context(tenant_id, fun)
+
+  defp with_tenant_context(_tenant_id, _fun), do: {:error, :missing_tenant_context}
 
   defp inventory_loading?(%Model{inventory_status: :loading}), do: true
   defp inventory_loading?(%Model{}), do: false

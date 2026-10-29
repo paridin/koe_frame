@@ -21,13 +21,15 @@ Read this before implementing any slice in this set. Work only in the
   bundles those executables.
 - `mix test` creates the tenant schema and runs the wrapper migrations. A
   working PostgreSQL service is required.
-- The preview needs `KOE_FRAME_SPEACHES_BASE_URL` and
-  `KOE_FRAME_SPEACHES_MODEL`. The model defaults to the NAS pilot's
-  `deepdml/faster-whisper-large-v3-turbo-ct2`. The base URL has no safe
-  universal default; return a clear configuration error if it is absent. It
-  also needs `KOE_FRAME_SUBTITLER_BASE_URL` pointing to the private Subtitler
-  service that has released `POST /api/cues/parse`. Dev and release config read
-  these values from the environment; adapters read `Application.get_env/3`.
+- The preview needs a tenant-scoped Vault secret with code `speaches_asr` in
+  project `koe_frame`, OTP app `koe_frame`, and the current environment. Its
+  content requires `base_url` and may include `api_key`; do not put either in
+  KoeFrame environment variables. The secret must be provisioned or the adapter
+  returns a sanitized unavailable error. The model defaults to the NAS pilot's
+  `deepdml/faster-whisper-large-v3-turbo-ct2`. It also needs
+  `KOE_FRAME_SUBTITLER_BASE_URL` pointing to the private Subtitler service that
+  has released `POST /api/cues/parse`. Model and timeout tuning remain
+  non-secret application settings.
 - Bound both Req `request_timeout` and `receive_timeout` using
   `KOE_FRAME_SPEACHES_TIMEOUT_MS` (default 180,000 ms, accepted range
   1–300,000 ms) and set `max_retries: 0` so a streamed inference request

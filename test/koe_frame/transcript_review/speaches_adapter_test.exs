@@ -2,14 +2,26 @@ defmodule Defdo.KoeFrame.TranscriptReview.SpeachesAdapterTest do
   use ExUnit.Case, async: false
 
   alias Defdo.KoeFrame.TranscriptReview.SpeachesAdapter
+  alias Defdo.Tenant.Context
 
   @config_keys [
     :runtime_env,
-    :speaches_base_url,
+    :speaches_vault_provider,
+    :speaches_test_connection,
     :speaches_model,
     :speaches_timeout_ms,
     :speaches_test_plug
   ]
+
+  defmodule VaultProviderFake do
+    def fetch do
+      Application.get_env(:koe_frame, :speaches_test_connection, %{
+        base_url: "http://speaches.test.invalid",
+        api_key: nil
+      })
+      |> then(&{:ok, &1})
+    end
+  end
 
   setup do
     Req.Test.verify_on_exit!()
@@ -26,10 +38,11 @@ defmodule Defdo.KoeFrame.TranscriptReview.SpeachesAdapterTest do
     previous = Enum.map(@config_keys, &{&1, Application.fetch_env(:koe_frame, &1)})
 
     Application.put_env(:koe_frame, :runtime_env, :test)
-    Application.put_env(:koe_frame, :speaches_base_url, "http://speaches.test.invalid")
+    Application.put_env(:koe_frame, :speaches_vault_provider, VaultProviderFake)
     Application.put_env(:koe_frame, :speaches_model, "test/faster-whisper")
     Application.put_env(:koe_frame, :speaches_timeout_ms, 1_000)
     Application.put_env(:koe_frame, :speaches_test_plug, {Req.Test, __MODULE__})
+    Context.put(Context.new("tenant-speech-transcription-test"))
 
     on_exit(fn ->
       Enum.each(previous, fn
@@ -37,6 +50,7 @@ defmodule Defdo.KoeFrame.TranscriptReview.SpeachesAdapterTest do
         {key, :error} -> Application.delete_env(:koe_frame, key)
       end)
 
+      Context.clear()
       File.rm_rf!(root)
     end)
 
@@ -80,15 +94,36 @@ defmodule Defdo.KoeFrame.TranscriptReview.SpeachesAdapterTest do
   end
 
   test "requires a configured private endpoint and bounded timeout" do
-    Application.delete_env(:koe_frame, :speaches_base_url)
-    assert {:error, :speaches_endpoint_not_configured} = SpeachesAdapter.configuration()
+    Application.put_env(
+      :koe_frame,
+      :speaches_vault_provider,
+      Defdo.KoeFrame.TranscriptReview.SpeachesAdapterTest.MissingVaultProvider
+    )
 
-    Application.put_env(:koe_frame, :speaches_base_url, "http://speaches.test.invalid")
+    assert {:error, :speaches_credentials_unavailable} = SpeachesAdapter.configuration()
+
+    Application.put_env(:koe_frame, :speaches_vault_provider, VaultProviderFake)
     Application.put_env(:koe_frame, :speaches_timeout_ms, 0)
     assert {:error, :invalid_speaches_timeout} = SpeachesAdapter.configuration()
 
     Application.put_env(:koe_frame, :speaches_timeout_ms, 300_001)
     assert {:error, :invalid_speaches_timeout} = SpeachesAdapter.configuration()
+  end
+
+  test "sends an optional bearer token from the Vault connection", %{wav_path: wav_path} do
+    api_key = "synthetic-speaches-test-key"
+
+    Application.put_env(:koe_frame, :speaches_test_connection, %{
+      base_url: "http://speaches.test.invalid",
+      api_key: api_key
+    })
+
+    Req.Test.expect(__MODULE__, fn conn ->
+      assert Plug.Conn.get_req_header(conn, "authorization") == ["Bearer #{api_key}"]
+      Req.Test.json(conn, %{"words" => [%{"word" => "ok", "start" => 0, "end" => 0.2}]})
+    end)
+
+    assert {:ok, [%{text: "ok"}]} = SpeachesAdapter.transcribe(wav_path, "ja", 1_000)
   end
 
   test "returns an unauthorized error without exposing a response body", %{wav_path: wav_path} do
@@ -137,4 +172,8 @@ defmodule Defdo.KoeFrame.TranscriptReview.SpeachesAdapterTest do
     assert {:error, :word_timestamp_outside_clip} =
              SpeachesAdapter.transcribe(wav_path, "ja", 1_000)
   end
+end
+
+defmodule Defdo.KoeFrame.TranscriptReview.SpeachesAdapterTest.MissingVaultProvider do
+  def fetch, do: {:error, :missing}
 end

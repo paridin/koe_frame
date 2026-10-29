@@ -15,8 +15,7 @@ defmodule Mix.Tasks.KoeFrame.TranscriptReviewTest do
     :transcript_review_adapter,
     :subtitler_adapter,
     :transcript_review_tenant_id,
-    :speaches_model,
-    :speaches_base_url
+    :speaches_model
   ]
 
   setup do
@@ -44,7 +43,6 @@ defmodule Mix.Tasks.KoeFrame.TranscriptReviewTest do
     Application.put_env(:koe_frame, :subtitler_adapter, FakeSubtitlerAdapter)
     Application.put_env(:koe_frame, :transcript_review_tenant_id, "tenant-transcript-test")
     Application.put_env(:koe_frame, :speaches_model, "test/model")
-    Application.put_env(:koe_frame, :speaches_base_url, "http://speaches.test.invalid")
 
     on_exit(fn ->
       Enum.each(previous, fn

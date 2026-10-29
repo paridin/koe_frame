@@ -1,9 +1,12 @@
 defmodule Defdo.KoeFrame.Admin.SpeechModelsFake do
   @moduledoc false
 
+  alias Defdo.Tenant.Context
+
   def registry do
     result = Application.get_env(:koe_frame, :speech_models_test_registry, {:ok, []})
     notify({:speech_registry, self()})
+    notify({:speech_inventory_tenant, Context.tenant_id()})
     result
   end
 

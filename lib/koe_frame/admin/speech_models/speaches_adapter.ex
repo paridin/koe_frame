@@ -45,17 +45,24 @@ defmodule Defdo.KoeFrame.Admin.SpeechModels.SpeachesAdapter do
   def transcribe(_audio_path, _model_id), do: {:error, :invalid_comparison_request}
 
   defp settings do
-    endpoint = Application.get_env(:koe_frame, :speaches_base_url)
+    provider = Application.get_env(:koe_frame, :speaches_vault_provider, SpeachesVaultProvider)
 
     timeout =
       Application.get_env(:koe_frame, :speaches_admin_timeout_ms, @default_timeout_ms)
 
-    with true <- valid_endpoint?(endpoint),
+    with {:ok, connection} <- provider.fetch(),
+         true <- valid_endpoint?(connection.base_url),
          {:ok, timeout_ms} <- normalize_timeout(timeout) do
-      {:ok, %{endpoint: String.trim_trailing(endpoint, "/"), timeout_ms: timeout_ms}}
+      {:ok,
+       %{
+         endpoint: connection.base_url,
+         api_key: connection.api_key,
+         timeout_ms: timeout_ms
+       }}
     else
-      false -> {:error, :speaches_endpoint_not_configured}
+      false -> {:error, :speaches_credentials_unavailable}
       {:error, _reason} = error -> error
+      _other -> {:error, :speaches_credentials_unavailable}
     end
   end
 
@@ -154,7 +161,7 @@ defmodule Defdo.KoeFrame.Admin.SpeechModels.SpeachesAdapter do
   end
 
   defp request_options(settings) do
-    [
+    options = [
       request_timeout: settings.timeout_ms,
       receive_timeout: settings.timeout_ms,
       connect_options: [timeout: settings.timeout_ms],
@@ -162,8 +169,17 @@ defmodule Defdo.KoeFrame.Admin.SpeechModels.SpeachesAdapter do
       retry: false,
       redirect: false
     ]
+
+    options
+    |> maybe_add_api_key(settings.api_key)
     |> add_test_plug()
   end
+
+  defp maybe_add_api_key(options, api_key) when is_binary(api_key) and api_key != "" do
+    Keyword.put(options, :headers, [{"authorization", "Bearer " <> api_key}])
+  end
+
+  defp maybe_add_api_key(options, _api_key), do: options
 
   defp add_test_plug(options) do
     if Application.get_env(:koe_frame, :runtime_env, :prod) == :test do

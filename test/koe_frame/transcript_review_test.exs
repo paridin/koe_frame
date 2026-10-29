@@ -16,7 +16,6 @@ defmodule Defdo.KoeFrame.TranscriptReviewTest do
     :media_analysis_adapter,
     :transcript_review_adapter,
     :subtitler_adapter,
-    :speaches_base_url,
     :speaches_model,
     :speaches_timeout_ms
   ]
@@ -45,7 +44,6 @@ defmodule Defdo.KoeFrame.TranscriptReviewTest do
     Application.put_env(:koe_frame, :media_analysis_adapter, FakeMediaAdapter)
     Application.put_env(:koe_frame, :transcript_review_adapter, FakeASRAdapter)
     Application.put_env(:koe_frame, :subtitler_adapter, FakeSubtitlerAdapter)
-    Application.put_env(:koe_frame, :speaches_base_url, "http://speaches.test.invalid")
     Application.put_env(:koe_frame, :speaches_model, "test/model")
     Application.put_env(:koe_frame, :speaches_timeout_ms, 1_000)
 

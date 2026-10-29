@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-dev.13 — 2026-10-28
+
+### Fixed
+
+- Resolve Speaches connection details from tenant-scoped Vault instead of
+  environment variables.
+
 ## 0.1.0-dev.12 — 2026-10-28
 
 ### Changed

@@ -123,6 +123,7 @@ defmodule Defdo.KoeFrameWeb.Admin.SpeechModelsLiveTest do
     assert html =~ "A representative Japanese benchmark set has not been evaluated."
     assert html =~ "A single-clip comparison is exploratory evidence"
     assert html =~ "Runtime unavailable"
+    assert_received {:speech_inventory_tenant, "tenant-test"}
   end
 
   test "speech model messages update a closed model and return effects separately" do

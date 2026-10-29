@@ -3,7 +3,23 @@ defmodule Defdo.KoeFrame.Admin.SpeechModels.SpeachesAdapterTest do
 
   alias Defdo.KoeFrame.Admin.SpeechModels.SpeachesAdapter
 
-  @config_keys [:runtime_env, :speaches_base_url, :speaches_admin_timeout_ms, :speaches_test_plug]
+  @config_keys [
+    :runtime_env,
+    :speaches_vault_provider,
+    :speaches_test_connection,
+    :speaches_admin_timeout_ms,
+    :speaches_test_plug
+  ]
+
+  defmodule VaultProviderFake do
+    def fetch do
+      Application.get_env(:koe_frame, :speaches_test_connection, %{
+        base_url: "http://speaches.test.invalid",
+        api_key: nil
+      })
+      |> then(&{:ok, &1})
+    end
+  end
 
   setup do
     Req.Test.verify_on_exit!()
@@ -21,7 +37,7 @@ defmodule Defdo.KoeFrame.Admin.SpeechModels.SpeachesAdapterTest do
     File.write!(wav_path, "synthetic streaming WAV bytes")
 
     Application.put_env(:koe_frame, :runtime_env, :test)
-    Application.put_env(:koe_frame, :speaches_base_url, "http://speaches.test.invalid")
+    Application.put_env(:koe_frame, :speaches_vault_provider, VaultProviderFake)
     Application.put_env(:koe_frame, :speaches_admin_timeout_ms, 1_000)
     Application.put_env(:koe_frame, :speaches_test_plug, {Req.Test, __MODULE__})
 
@@ -68,6 +84,22 @@ defmodule Defdo.KoeFrame.Admin.SpeechModels.SpeachesAdapterTest do
 
     assert {:ok, [installed]} = SpeachesAdapter.installed()
     assert installed.id == "Systran/faster-whisper-small"
+  end
+
+  test "sends Vault-resolved provider credentials without exposing them" do
+    api_key = "synthetic-speaches-test-key"
+
+    Application.put_env(:koe_frame, :speaches_test_connection, %{
+      base_url: "http://speaches.test.invalid",
+      api_key: api_key
+    })
+
+    Req.Test.expect(__MODULE__, fn conn ->
+      assert Plug.Conn.get_req_header(conn, "authorization") == ["Bearer #{api_key}"]
+      Req.Test.json(conn, %{"data" => []})
+    end)
+
+    assert {:ok, []} = SpeachesAdapter.registry()
   end
 
   test "posts a validated model identifier to Speaches install endpoint" do
@@ -129,10 +161,18 @@ defmodule Defdo.KoeFrame.Admin.SpeechModels.SpeachesAdapterTest do
   test "requires a private endpoint shape, bounded timeout, and regular audio file", %{
     wav_path: wav_path
   } do
-    Application.put_env(:koe_frame, :speaches_base_url, "http://user:pass@speaches.test.invalid")
-    assert {:error, :speaches_endpoint_not_configured} = SpeachesAdapter.registry()
+    Application.put_env(:koe_frame, :speaches_test_connection, %{
+      base_url: "http://user:pass@speaches.test.invalid",
+      api_key: nil
+    })
 
-    Application.put_env(:koe_frame, :speaches_base_url, "http://speaches.test.invalid")
+    assert {:error, :speaches_credentials_unavailable} = SpeachesAdapter.registry()
+
+    Application.put_env(:koe_frame, :speaches_test_connection, %{
+      base_url: "http://speaches.test.invalid",
+      api_key: nil
+    })
+
     Application.put_env(:koe_frame, :speaches_admin_timeout_ms, "1800001")
     assert {:error, :invalid_speaches_timeout} = SpeachesAdapter.registry()
 

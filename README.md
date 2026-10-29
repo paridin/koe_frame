@@ -80,9 +80,13 @@ Subtitler:
       --audio-stream 1 --subtitle-stream 3 --source-language ja \
       --start-ms 5000 --duration-ms 30000
 
-Mix configuration reads KOE_FRAME_TENANT_ID,
-KOE_FRAME_SPEACHES_BASE_URL, KOE_FRAME_SPEACHES_MODEL, and
-KOE_FRAME_SPEACHES_TIMEOUT_MS. Subtitler uses SUBTITLER_CUE_BASE_URL and the
+Mix configuration reads KOE_FRAME_TENANT_ID, KOE_FRAME_SPEACHES_MODEL, and
+KOE_FRAME_SPEACHES_TIMEOUT_MS. Speaches connection data is resolved from the
+current tenant's Vault secret `speaches_asr` in project `koe_frame`, scoped to
+OTP app `koe_frame` and the current environment. Its content requires `base_url`
+and may include `api_key`; the endpoint and token are not environment variables.
+That Vault secret must be provisioned before preview or model-lab requests can
+reach Speaches. Subtitler uses SUBTITLER_CUE_BASE_URL and the
 Vault reference SUBTITLER_CUE_TOKEN_REF. In production, that reference defaults
 to `vault://secret/subtitler/koe_frame_cue_api_token?otp_app=koe_frame&env=prod`;
 an explicit `SUBTITLER_CUE_TOKEN_REF` value overrides it. The reference does

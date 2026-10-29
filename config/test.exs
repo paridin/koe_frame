@@ -2,7 +2,6 @@ import Config
 
 config :koe_frame,
   transcript_review_tenant_id: "tenant-transcript-test",
-  speaches_base_url: "http://speaches.test.invalid",
   speaches_model: "test/faster-whisper",
   speaches_timeout_ms: 1_000,
   subtitler_cue_base_url: "https://subtitler.test.invalid",

@@ -25,9 +25,11 @@ it leaves the source untouched and removes its temporary WAV/SRT files.
 - Subtitler's released `POST /api/cues/parse` contract must be reachable at a
   private service address. This slice consumes the HTTP JSON contract and
   does not add a compile-time dependency on the Subtitler repository.
-- Set `KOE_FRAME_SPEACHES_BASE_URL` to a private Speaches endpoint and
-  `KOE_FRAME_SPEACHES_MODEL` to an installed model. Do not put an endpoint or
-  secret in CLI arguments or source control.
+- Provision tenant Vault secret `speaches_asr` under project `koe_frame`, OTP
+  app `koe_frame`, and the current environment. Store `base_url` and optional
+  `api_key` in its encrypted content. Set `KOE_FRAME_SPEACHES_MODEL` to an
+  installed model if the default is unsuitable. Do not put endpoint or token in
+  CLI arguments or source control.
 - This slice does not depend on the Hub task-job API or `defdo_order` and does
   not submit a translation task.
 
@@ -126,16 +128,15 @@ line numbers move, anchors do not.
    Return tagged errors for unavailable service, timeout, non-success HTTP,
    unauthorized response, malformed JSON, and malformed word entries. Do not
    include an HTTP body or configured base URL in error text.
-4. Read endpoint, model, and timeout from KoeFrame application configuration
-   with `Application.get_env/3`; adapters must not read environment variables
-   directly. `config/dev.exs` reads `KOE_FRAME_SPEACHES_BASE_URL`,
-   `KOE_FRAME_SPEACHES_MODEL`, `KOE_FRAME_SPEACHES_TIMEOUT_MS`,
-   `KOE_FRAME_SUBTITLER_BASE_URL`, and `KOE_FRAME_SUBTITLER_TIMEOUT_MS` for Mix
-   commands. `config/runtime.exs` reads the same values for release boot, and
-   `config/test.exs` installs deterministic fake adapters and Req test plugs.
-   Validate both timeouts as positive bounded integers and return a tagged
-   configuration error when either private base URL is missing. Mix tasks use
-   dev config; `runtime.exs` is not loaded by Mix.
+ 4. Resolve the tenant's Speaches endpoint and optional API key from the Vault
+    secret `speaches_asr`; keep model and timeout in KoeFrame application
+    configuration. Adapters must not read environment variables directly.
+    `config/dev.exs` and `config/runtime.exs` read only non-secret model/timeout
+    tuning and Subtitler service settings. `config/test.exs` installs
+    deterministic fake providers and Req test plugs. Validate timeouts as
+    positive bounded integers and return a sanitized configuration error when
+    Vault lacks a valid connection. Mix tasks use dev config; `runtime.exs` is
+    not loaded by Mix.
    Default the model to NAS-tested
    `deepdml/faster-whisper-large-v3-turbo-ct2`. The endpoint is not a
    user-supplied URL. Bound both Req `request_timeout` and `receive_timeout`

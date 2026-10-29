@@ -5,7 +5,6 @@ config :koe_frame,
 
 config :koe_frame,
   transcript_review_tenant_id: System.get_env("KOE_FRAME_TENANT_ID"),
-  speaches_base_url: System.get_env("KOE_FRAME_SPEACHES_BASE_URL"),
   speaches_model:
     System.get_env("KOE_FRAME_SPEACHES_MODEL", "deepdml/faster-whisper-large-v3-turbo-ct2"),
   speaches_timeout_ms: System.get_env("KOE_FRAME_SPEACHES_TIMEOUT_MS", "180000"),
